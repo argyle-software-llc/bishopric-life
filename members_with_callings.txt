@@ -1,0 +1,158 @@
+Alexander, Steven	M	54	29 Apr 1971	(972) 569-7870	Elders Quorum	Elders Quorum Service Coordinator	6 Apr 2025
+	Aman, Craig	M	61	10 Mar 1964	(469) 371-1690	Primary	Primary Music Leader	29 Oct 2023
+	Aoyama, Janice	F	62	31 Aug 1963	(469) 628-2164		Service Missionary Adviser	20 Apr 2023
+	Aoyama, Janice	F	62	31 Aug 1963	(469) 628-2164	Temple Workers	Temple Worker	9 Dec 2022
+	Aoyama, Kory	M	58	21 May 1967	(469) 417-8313		Service Missionary Adviser	20 Apr 2023
+	Aoyama, Kory	M	58	21 May 1967	(469) 417-8313	Temple Workers	Temple Worker	9 Dec 2022
+	Bailey, Laurie Michelle	F	37	19 Nov 1987	(972) 765-3260	Relief Society	Relief Society Activity Committee Member	25 Jun 2023
+	Bennett, Andrew	M	37	13 Mar 1988	(678) 683-9280	Other Callings	Seminary Teacher	10 Aug 2025
+	Bennett, Karen	F	39	14 Oct 1986	(801) 792-5751	Other Callings	FSY Conferences Representative	26 Jan 2025
+	Bennett, Karen	F	39	14 Oct 1986	(801) 792-5751	Young Women	Young Women Class Adviser	9 Jun 2024
+	Block, Chelsey	F	35	22 Jul 1990	(702) 762-3680	Relief Society	Relief Society Activity Committee Member	24 Mar 2024
+	Block, John	M	41	21 Jul 1984	(469) 919-4844	Primary	Valiant Activities Leader	25 Aug 2024
+	Bowman, Denise	F	59	21 Jun 1966	(972) 697-5185	Primary	CTR 4	29 Sep 2024
+	Bowman, Jaida	F	30	9 Sep 1995	(214) 937-1843	Primary	CTR 4	29 Sep 2024
+	Brooks, Chlorissa	F	24	11 Jan 2001	(214) 930-7710	Sunday School	Course 15, Course 16, Course 17	25 May 2025
+	Brooks, Seth	M	25	31 Dec 1999	(903) 422-0119	Primary	CTR 6	25 May 2025
+	Brown, Connor Michael	M	14	4 Mar 2011		Aaronic Priesthood Quorums	Teachers Quorum Second Counselor	2 Mar 2025
+	Brown, Jarom	M	40	30 Sep 1985	(469) 416-1747	Aaronic Priesthood Quorums	Teachers Quorum Adviser	15 Sep 2024
+	Brown, Jarom	M	40	30 Sep 1985	(469) 416-1747	Bishopric	Ward Executive Secretary	14 Sep 2025
+	Brown, Scott	M	62	4 Feb 1963	(940) 391-8983	Temple and Family History	Ward Temple and Family History Consultant	30 Mar 2025
+	Brown, Stephanie	F	39	27 Feb 1986	(425) 314-7327	Sunday School	Course 15, Course 16, Course 17	12 Nov 2023
+	Brown, Valerie	F	61	11 Feb 1964	(940) 390-2946	Relief Society	Relief Society Secretary	27 Jul 2025
+	Bundy, Brooke	F	41	9 Feb 1984	(612) 345-0544	Sunday School	Course 13, Course 14	12 Nov 2023
+	Busenbark, John	M	78	13 Sep 1947	(512) 535-8312	Temple Workers	Temple Worker	13 Apr 2016
+	Butler, David	M	40	11 Oct 1985	(972) 837-0310	High Council	Stake High Councilor	14 Sep 2025
+	Butler, Megan Kenison	F	32	23 Apr 1993	(469) 785-6716	Relief Society	Relief Society Activity Committee Member	24 Mar 2024
+	Butler, Megan Kenison	F	32	23 Apr 1993	(469) 785-6716	Relief Society	Relief Society Assistant Activity Coordinator	24 Mar 2024
+	Carroll, Bill	M	64	7 Oct 1961	(214) 385-8977	Other Callings	Building Representative	8 Jun 2025
+	Carroll, Bill	M	64	7 Oct 1961	(214) 385-8977	Temple Workers	Temple Worker	23 Aug 2014
+	Carroll, Shirley	F	64	28 May 1961	(972) 529-3926	Other Callings	Building Representative	8 Jun 2025
+	Carroll, Shirley	F	64	28 May 1961	(972) 529-3926	Temple Workers	Temple Worker	16 Jun 2017
+	Chase, Brad	M	34	9 Feb 1991	(626) 228-8895	Elders Quorum	Elders Quorum Second Counselor	15 Oct 2023
+	Chase, Brad	M	34	9 Feb 1991	(626) 228-8895	Bishopric	Ward Clerk	14 Sep 2025
+	Chase, Bridget Lee	F	34	29 Aug 1991	(310) 469-2646	Primary	Primary Pianist	9 Apr 2023
+	Clark, Arlene	F	48	18 May 1977	(214) 856-9128	Primary	Sunbeam	13 Jul 2025
+	Clark, Arlene	F	48	18 May 1977	(214) 856-9128	Relief Society	Relief Society Service Committee Member	24 Mar 2024
+	Clark, John	M	46	2 Aug 1979	(214) 995-2766	Primary	Sunbeam	13 Jul 2025
+	Clay, Abram	M	39	20 Jan 1986	(804) 241-6370	Aaronic Priesthood Quorums	Priests Quorum Adviser	22 Oct 2023
+	Clay, Melissa	F	37	5 Jun 1988	(435) 231-2061	Relief Society	Relief Society Second Counselor	29 Oct 2023
+	Collmar, Wendy	F	73	8 Dec 1951	(817) 300-1234	Primary	Valiant 9	1 Sep 2024
+	Collmar, Wendy	F	73	8 Dec 1951	(817) 300-1234	Relief Society	Relief Society Activity Coordinator	20 Jul 2025
+	Collmar, Wendy	F	73	8 Dec 1951	(817) 300-1234	Relief Society	Relief Society Service Coordinator	1 Oct 2025
+	De La Houssaye, Megan	F	41	17 Aug 1984	(435) 764-3737	Sunday School	Course 12/14	4 May 2025
+	Despain, Amber	F	49	8 Mar 1976	(602) 697-2915	Ward Missionaries	Ward Missionary	5 Jan 2025
+	Despain, Bradley Logan	M	15	3 Mar 2010		Aaronic Priesthood Quorums	Teachers Quorum President	2 Mar 2025
+	Despain, David	M	52	4 Aug 1973	(602) 736-4419	Other Callings	Seminary Teacher	18 Aug 2024
+	Dew, William	M	41	19 May 1984	(801) 696-9546	Primary	Valiant 10	16 Feb 2025
+	Dirks, Mary	F	57	26 Apr 1968	(573) 268-3929	Primary	Primary Second Counselor	5 Nov 2023
+	Felton, Jasmin	F	42	7 Apr 1983	(972) 333-7172	Ward Missionaries	Ward Missionary	5 Jan 2025
+	Finlinson, Parker	M	34	27 Mar 1991	(314) 550-9720	Sunday School	Sunday School President	12 Jan 2025
+	Finlinson, Torie	F	36	27 May 1989	(209) 324-8734	Young Women	Young Women First Counselor	22 Oct 2023
+	Gonzalez, Natalie	F	54	17 Aug 1971	(469) 861-6418	Relief Society	Relief Society Activity Committee Member	13 Nov 2022
+	Gordon, Andrew	M	51	16 Apr 1974	(408) 390-4473	Elders Quorum	Elders Quorum First Counselor	15 Oct 2023
+	Gordon, Miranda	F	47	19 Dec 1977	(408) 394-3332	Relief Society	Relief Society President	29 Oct 2023
+	Green, Will	M	32	3 Nov 1992	(831) 682-2029	Primary	Valiant 10	6 Jul 2025
+	Hatch, Cynthia	F	50	21 Aug 1975	(801) 358-7614	Relief Society	Relief Society Service Committee Member	1 Oct 2025
+	Hatch, David	M	52	5 Sep 1973	(801) 400-0322	Aaronic Priesthood Quorums	Priests Quorum Adviser	13 Jul 2025
+	Hobson, Matt	M	45	19 Sep 1980	(817) 726-1267	Primary	Valiant Activities Leader	10 Sep 2023
+	Hodges, Kelli	F	37	3 Oct 1988	(225) 324-6540	Young Women	Young Women Class Adviser	22 Oct 2023
+	Jackson, Nate	M	36	11 Jun 1989	(801) 427-2002	Bishopric	Bishop	14 Sep 2025
+	Jackson, Nate	M	36	11 Jun 1989	(801) 427-2002	Aaronic Priesthood Quorums	Priests Quorum President	14 Sep 2025
+	Jaske-Moser, Bryant A	M	40	21 Oct 1984	(702) 577-8991	Elders Quorum	Elders Quorum Secretary	8 Sep 2024
+	Jaske-Moser, L Kathleen	F	51	17 Oct 1974	(702) 469-7955	Primary	Valiant 9	17 Dec 2023
+	Jaussi, Griffin Beau	M	13	18 Oct 2012		Aaronic Priesthood Quorums	Deacons Quorum President	9 Feb 2025
+	Jaussi, Mauressa	F	42	13 Sep 1983	(949) 632-3259	Primary	Primary First Counselor	5 Nov 2023
+	Jessop, Andrea	F	46	18 Oct 1979	(801) 505-3083	Other Callings	Music Coordinator	12 Nov 2023
+	Jessop, Andrea	F	46	18 Oct 1979	(801) 505-3083	Sunday School	Course 13, Course 14	12 Nov 2023
+	Jessop, Clark	M	47	5 Apr 1978	(303) 532-9379	Sunday School	Gospel Doctrine	12 Oct 2025
+	Kinneer, Daniel Roderick	M	15	27 Apr 2010	(945) 237-2385	Aaronic Priesthood Quorums	Teachers Quorum First Counselor	2 Mar 2025
+	Kinneer, Kevin	M	58	31 Jan 1967	(682) 248-4305	Ward Missionaries	Ward Missionary	5 Jan 2025
+	Kinneer, Susan	F	51	29 Apr 1974	(682) 248-4304	Ward Missionaries	Ward Missionary	5 Jan 2025
+	Krieger, Jared	M	60	11 Sep 1965	(785) 218-1200	Aaronic Priesthood Quorums	Aaronic Priesthood Quorums Specialist	4 Feb 2024
+	Laidlaw, Briana Nichole	F	34	11 Nov 1990	(626) 224-3474	Relief Society	Relief Society Activity Coordinator	17 Dec 2023
+	Larsen, Alenka Kiersten	F	28	21 Jan 1997	(503) 544-9498	Young Women	Young Women Class Adviser	22 Oct 2023
+	Larsen, Christian	M	30	25 Jul 1995	(435) 512-8989	Sunday School	Unassigned Teachers	13 Jul 2025
+	Lewis, Eric	M	53	14 Jun 1972	(214) 995-1131	Bishopric	Ward Assistant Executive Secretary	28 Jul 2024
+	Lewis, Sharisa	F	54	4 Jun 1971	(214) 405-1768		CC Communication Specialist	2 Jan 2021
+	Liu, Brianna	F	32	19 Jun 1993	(971) 335-9147	Primary	Valiant Activities Leader	17 Aug 2025
+	Loosli, David	M	50	4 Jul 1975	(214) 548-7626	Other Callings	Youth Sports Specialist	27 Oct 2024
+	Loosli, Holley	F	50	11 Dec 1974	(214) 548-2876	Other Callings	Seminary Teacher	22 Jun 2025
+	Miller, Amy	F	55	26 Apr 1970	(408) 210-6492	Primary	Nursery Leader	26 Jan 2025
+	Miller, Amy	F	55	26 Apr 1970	(408) 210-6492	Other Callings	Seminary Teacher	12 Jul 2020
+	Miller, Ashlin	F	17	3 Apr 2008		Young Women	Young Women Class Secretary	6 Oct 2024
+	Miller, Darren	M	57	3 Jun 1968	(214) 923-2893	Other Callings	Seminary Teacher	22 Jun 2025
+	Miller, Kristan	F	54	17 Feb 1971	(214) 986-3107	Other Callings	Seminary Teacher	22 Jun 2025
+	Miller, Michael	M	57	23 Nov 1967	(408) 218-6081	Aaronic Priesthood Quorums	Deacons Quorum Specialist	12 Nov 2023
+	Muir, Sara	F	77	9 Jun 1948	(818) 321-6555	Temple Workers	Temple Worker	25 Mar 2021
+	Muir, Thomas	M	77	20 Aug 1948	(818) 472-1093	Temple Sealers	Temple Sealer	30 Aug 2022
+	Murala, Aparajitha Duvvuru	F	48	11 Jan 1977	(847) 736-1750	Other Callings	Seminary Teacher	18 Aug 2024
+	Murala, Nitin	M	16	12 Nov 2008		Aaronic Priesthood Quorums	Priests Quorum Secretary	29 Jun 2025
+	Nebeker, Marisa	F	55	9 Dec 1969	(972) 890-1658	Stake Primary	Stake Primary President	29 Dec 2024
+	Nebeker, Ryan	M	56	14 Dec 1968	(972) 821-3058	Stake Presidency	Stake Executive Secretary	14 Sep 2025
+	Nese, Claire	F	48	9 Jun 1977	(972) 922-8634	Primary	Primary Secretary	5 Nov 2023
+	Nese, Tony	M	59	1 Nov 1965	(214) 995-5640	Primary	Valiant Activities Leader	14 Jan 2024
+	Neve, Philip	M	56	14 Jan 1969	(801) 450-0480	Bishopric	Bishopric Second Counselor	14 Sep 2025
+	Neve, Taralee	F	51	9 Jun 1974	(801) 450-0680	Other Callings	Seminary Supervisor	17 Nov 2024
+	Nielson, AJ	M	45	5 Sep 1980	(480) 734-4459	Primary	CTR 5	29 Nov 2020
+	Nielson, Nikki	F	44	1 Nov 1980	(480) 620-2292	Primary	Primary President	5 Nov 2023
+	Nielson, Tori Lynn	F	18	10 Dec 2006	(469) 525-3474	Young Women	Young Women Class President	6 Oct 2024
+	Owens, Brian	M	48	21 Jun 1977	(469) 235-4750	Ward Missionaries	Ward Mission Leader	12 Oct 2025
+	Owens, Cristie	F	46	15 May 1979	(469) 235-2082	Primary	Nursery Leader	26 Jan 2025
+	Owens, Cristie	F	46	15 May 1979	(469) 235-2082	Other Callings	Seminary Teacher	18 Aug 2024
+	Owens, Cristie	F	46	15 May 1979	(469) 235-2082	Temple Workers	Temple Worker	31 Jan 2024
+	Owens, Melori	F	16	19 Dec 2008	(469) 954-0574	Young Women	Young Women Class Second Counselor	6 Oct 2024
+	Petersen, Corey Kent	M	42	24 Jul 1983	(509) 795-4365	Other Callings	Accompanist	24 Oct 2021
+	Petersen, Corey Kent	M	42	24 Jul 1983	(509) 795-4365	Other Callings	Stake Young Single Adult Adviser	19 Jan 2025
+	Petersen, Hatsumi	F	42	12 Nov 1982	(509) 590-8026	Relief Society	Relief Society Activity Committee Member	20 Jul 2025
+	Petersen, Hatsumi	F	42	12 Nov 1982	(509) 590-8026	Relief Society	Relief Society Service Committee Member	1 Oct 2025
+	Petersen, James Kent	M	15	18 May 2010		Aaronic Priesthood Quorums	Teachers Quorum Secretary	2 Mar 2025
+	Petersen, Samuel Ray	M	12	13 Dec 2012		Aaronic Priesthood Quorums	Deacons Quorum Second Counselor	9 Feb 2025
+	Peterson, Gina	F	35	25 Feb 1990	(405) 990-3608	Young Women	Young Women Secretary	25 May 2025
+	Peterson, Nathan	M	40	21 Dec 1984	(801) 687-5162	Other Callings	Life Helps Instructor	15 Oct 2023
+	Peterson, Nathan	M	40	21 Dec 1984	(801) 687-5162	Primary	CTR 6	4 May 2025
+	Pulley, Haley	F	44	13 Jun 1981	(703) 888-7048	Primary	Nursery Leader	26 Jan 2025
+	Pulley, Haley	F	44	13 Jun 1981	(703) 888-7048	Primary	Valiant Activities Leader	19 Nov 2023
+	Pulley, Hays	M	12	27 Jul 2013		Aaronic Priesthood Quorums	Deacons Quorum First Counselor	9 Feb 2025
+	Pulley, Kyle	M	45	26 Aug 1980	(469) 271-3508	Elders Quorum	Elders Quorum President	8 Oct 2023
+	Reed, Emily Anne	F	27	5 Jun 1998	(805) 910-8267	Primary	Valiant 7	5 Jan 2025
+	Reed, Nathan	M	27	30 Oct 1997	(530) 567-9630	Primary	Valiant 7	5 Jan 2025
+	Richards, Emma	F	17	15 Apr 2008		Young Women	Young Women Class First Counselor	6 Oct 2024
+	Richards, Jerod	M	47	9 May 1978	(801) 793-4446	Bishopric	Ward Assistant Clerk--Membership	28 Jul 2024
+	Richards, Melinda	F	43	5 Aug 1982	(801) 472-0460	Young Women	Young Women Second Counselor	29 Oct 2023
+	Richards, Tom	M	67	6 Sep 1958	(925) 683-2739	Ward Missionaries	Ward Missionary	5 Jan 2025
+	Robertson, Kelli	F	50	2 Sep 1975	(214) 449-0567	Stake Young Women	Stake Young Women President	29 Jan 2023
+	Robertson, Paul	M	50	3 Jun 1975	(214) 449-0885	Other Callings	Auditor	17 Dec 2023
+	Robertson, Paul	M	50	3 Jun 1975	(214) 449-0885	Other Callings	Stake Building Representative	17 Dec 2023
+	Robertson, Paul	M	50	3 Jun 1975	(214) 449-0885	High Council	Stake High Councilor	3 Dec 2023
+	Sandland, Ian	M	59	23 Apr 1966	(972) 896-6043	Primary	Unassigned Teachers	26 Nov 2023
+	Scott, Brian	M	47	19 Dec 1977	(661) 748-3221	Ward Missionaries	Ward Missionary	5 Jan 2025
+	Scott, Esmeralda	F	49	24 Aug 1976	(925) 895-8738	Relief Society	Relief Society Activity Committee Member	9 Mar 2025
+	Servigon, Leigh	F	51	3 Oct 1974	(972) 896-9713	Relief Society	Relief Society Activity Committee Member	9 Mar 2025
+	Servigon, Leigh	F	51	3 Oct 1974	(972) 896-9713	Temple Workers	Temple Worker	19 Jan 2024
+	Sharrah, Karl	M	65	16 Jan 1960	(281) 382-4430	Sunday School	Resource Center Specialist	5 Jan 2025
+	Sharrah, Karl	M	65	16 Jan 1960	(281) 382-4430	Temple Workers	Temple Worker	25 Aug 2022
+	Simmons, Stephen	M	51	2 Apr 1974	(508) 277-3588	Primary	CTR 5	6 Sep 2020
+	Stevens, Emmeline Monet	F	28	27 Jan 1997	(972) 365-4519	Primary	Valiant 8	29 Dec 2024
+	Stevens, Emmeline Monet	F	28	27 Jan 1997	(972) 365-4519	Relief Society	Relief Society Activity Committee Member	24 Mar 2024
+	Stevens, Gilbert	M	29	15 Jul 1996	(469) 354-4626	Primary	Valiant 8	29 Dec 2024
+	Stevens, Reina Maribel	F	52	2 Sep 1973	(612) 226-6678	Relief Society	Relief Society Service Committee Member	29 Sep 2024
+	Stevens, Shaun	M	60	30 Jun 1965	(507) 271-7856	Ward Missionaries	Ward Missionary	5 Jan 2025
+	Stolper, Kayla	F	25	10 Nov 1999	(469) 307-1511	Other Callings	Young Adult Family Activities Leader	1 Jun 2024
+	Stolper, Noah Nathaniel	M	28	3 Aug 1997	(805) 602-6085	Other Callings	Young Adult Family Activities Leader	1 Jun 2024
+	Swallow, Kara	F	48	1 May 1977	(801) 599-5954	Young Women	Young Women President	22 Oct 2023
+	Swallow, Todd	M	49	28 Apr 1976	(801) 599-2288	Bishopric	Bishopric First Counselor	14 Sep 2025
+	Thompson, Aubrey Lynn	F	36	16 Mar 1989	(623) 363-7868	Other Callings	Music Leader	12 Jun 2022
+	Thompson, Aubrey Lynn	F	36	16 Mar 1989	(623) 363-7868	Relief Society	Relief Society Teacher	4 Mar 2025
+	Thompson, Kasey Reay	M	38	12 Oct 1987	(469) 988-9524	Primary	Valiant Activities Leader	16 Feb 2025
+	Villagomez, David	M	35	22 Oct 1989	(480) 223-2828	Elders Quorum	Elders Quorum Activity Coordinator	6 Apr 2025
+	Villagomez, Heather Ann	F	35	24 Sep 1990	(480) 721-2994	Relief Society	Relief Society Teacher	4 Mar 2025
+	Vogel, Alicia	F	52	28 Feb 1973	(214) 491-7412	Relief Society	Relief Society Service Committee Member	9 Mar 2025
+	Vogel, Fred	M	55	8 Dec 1969	(972) 977-2791	Bishopric	Ward Assistant Clerk--Finance	27 Oct 2024
+	Volpetti, Kari	F	49	18 Mar 1976	(774) 454-4199	Temple and Family History	Ward Temple and Family History Consultant	25 May 2025
+	Volpetti, Sean	M	57	4 Jun 1968	(774) 454-1912	Temple and Family History	Ward Temple and Family History Leader	4 May 2025
+	Whitmer, Josh	M	34	1 Mar 1991	(801) 349-6877	Aaronic Priesthood Quorums	Deacons Quorum Adviser	22 Sep 2024
+	Whitmer, Tayler	F	35	17 Oct 1990	(801) 652-8993	Relief Society	Relief Society First Counselor	8 Sep 2024
+	Wilding, Kameron	M	33	3 May 1992	(214) 843-4668	Aaronic Priesthood Quorums	Teachers Quorum Adviser	12 Oct 2025
+	Wilkinson, Tatia	F	59	14 Apr 1966	(925) 413-2549	Primary	Valiant Activities Leader	25 Aug 2024
+	de la Houssaye, Bartley	M	42	25 Sep 1983	(435) 881-3987	Sunday School	Course 12/14	4 May 2025
