@@ -88,14 +88,21 @@ NODE_ENV=development
 
 ### 6. Run database migrations
 
-Execute the SQL migration file:
+Execute the SQL schema file:
 ```bash
-psql -d ward_callings -f ../database/001_initial_schema.sql
+psql -d ward_callings -f server/src/db/schema.sql
 ```
 
-Or using the PostgreSQL connection:
+### 7. Import ward data from LCR
+
+See **[SYNC_SETUP.md](SYNC_SETUP.md)** for detailed instructions:
+
 ```bash
-psql ward_callings < ../database/001_initial_schema.sql
+# Get cookies from browser
+./scripts/get_cookies_instructions.sh
+
+# Run initial sync
+./scripts/run_sync.sh
 ```
 
 ## Running the Application
@@ -183,24 +190,71 @@ The application uses the following main tables:
 - `PUT /api/tasks/:id` - Update task
 - `POST /api/tasks/:id/complete` - Mark task complete
 
-## Data Import
+## LCR Data Sync
 
-To import your existing ward data, you can:
+Automatically sync ward data from churchofjesuschrist.org:
 
-1. Use the Church API (from your frisco5th-lcr project)
-2. Import from CSV files
-3. Manually enter through the UI
+```bash
+# Get fresh cookies (see instructions)
+./scripts/get_cookies_instructions.sh
 
-We can create import scripts once you have your ward directory ready.
+# Run sync
+./scripts/run_sync.sh
+```
+
+For detailed setup and VPS deployment, see:
+- **[SYNC_SETUP.md](SYNC_SETUP.md)** - Setting up LCR data sync
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deploying to a VPS
+
+## Common Tasks
+
+### Sync Ward Data
+```bash
+./scripts/run_sync.sh
+```
+
+### Database Operations
+```bash
+# View member count
+psql -d ward_callings -c "SELECT COUNT(*) FROM members WHERE is_active = true;"
+
+# Backup database
+pg_dump ward_callings > backup_$(date +%Y%m%d).sql
+
+# Restore from backup
+psql ward_callings < backup_20241129.sql
+```
+
+### Development
+```bash
+# Run in development mode (auto-reload)
+npm run dev
+
+# Build for production
+npm run build
+```
+
+## Troubleshooting
+
+### Cookies expired (401 error when syncing)
+Get fresh cookies: `./scripts/get_cookies_instructions.sh`
+
+### Database connection error
+- Check PostgreSQL is running: `pg_ctl status`
+- Verify database exists: `psql -l | grep ward_callings`
+
+### Port already in use
+```bash
+lsof -ti:3003 | xargs kill -9
+```
 
 ## Future Enhancements
 
+- Auto-populate considerations from member selection pane
 - Interactive org chart with drag-and-drop
-- Cascading effect visualization
 - Member household modal view
-- Photo management
+- Photo syncing from LCR
 - Reporting and analytics
-- Church API integration for automatic data sync
 - Authentication and authorization
 - Multi-user support with role-based access
 

@@ -11,7 +11,8 @@ import {
 } from '../api/client';
 import CreateCallingChangeModal from '../components/CreateCallingChangeModal';
 import AddConsiderationModal from '../components/AddConsiderationModal';
-import type { CallingChangeStatus } from '../types';
+import MemberSelectionPane from '../components/MemberSelectionPane';
+import type { CallingChangeStatus, Member } from '../types';
 
 export default function CallingChanges() {
   const [statusFilter, setStatusFilter] = useState<CallingChangeStatus | 'all'>('in_progress');
@@ -20,6 +21,7 @@ export default function CallingChanges() {
     isOpen: boolean;
     callingChangeId: string;
   }>({ isOpen: false, callingChangeId: '' });
+  const [memberPaneOpen, setMemberPaneOpen] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -111,12 +113,33 @@ export default function CallingChanges() {
           <h2 className="text-2xl font-bold text-gray-900">Calling Changes</h2>
           <p className="text-gray-600 mt-1">Track and manage calling transitions</p>
         </div>
-        <button
-          onClick={() => setCreateModalOpen(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-        >
-          + New Calling Change
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setMemberPaneOpen(true)}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center space-x-2"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+              />
+            </svg>
+            <span>Available Members</span>
+          </button>
+          <button
+            onClick={() => setCreateModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            + New Calling Change
+          </button>
+        </div>
       </div>
 
       {/* Status Filter */}
@@ -448,6 +471,17 @@ export default function CallingChanges() {
         isOpen={addConsiderationModal.isOpen}
         onClose={() => setAddConsiderationModal({ isOpen: false, callingChangeId: '' })}
         callingChangeId={addConsiderationModal.callingChangeId}
+      />
+
+      {/* Member Selection Pane */}
+      <MemberSelectionPane
+        isOpen={memberPaneOpen}
+        onClose={() => setMemberPaneOpen(false)}
+        onSelectMember={(member: Member) => {
+          console.log('Selected member:', member);
+          // Could add functionality here to auto-populate consideration
+          setMemberPaneOpen(false);
+        }}
       />
     </div>
   );

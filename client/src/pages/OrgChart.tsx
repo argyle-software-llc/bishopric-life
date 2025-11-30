@@ -3,10 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getCallings, getOrganizations, createCallingChange } from '../api/client';
 import { isRestrictedCalling, getTimeInCalling } from '../utils/callingUtils';
-import type { Calling } from '../types';
+import MemberSelectionPane from '../components/MemberSelectionPane';
+import type { Calling, Member } from '../types';
 
 export default function OrgChart() {
   const [selectedCalling, setSelectedCalling] = useState<Calling | null>(null);
+  const [showVacantOnly, setShowVacantOnly] = useState(false);
+  const [selectedOrgId, setSelectedOrgId] = useState<string>('all');
+  const [memberPaneOpen, setMemberPaneOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -36,8 +40,21 @@ export default function OrgChart() {
     );
   }
 
+  // Filter callings based on selected filters
+  const filteredCallings = callings?.filter((calling) => {
+    // Filter by vacant only if enabled
+    if (showVacantOnly && calling.member_id) {
+      return false;
+    }
+    // Filter by organization if one is selected
+    if (selectedOrgId !== 'all' && calling.organization_id !== selectedOrgId) {
+      return false;
+    }
+    return true;
+  });
+
   // Group callings by organization
-  const callingsByOrg = callings?.reduce((acc, calling) => {
+  const callingsByOrg = filteredCallings?.reduce((acc, calling) => {
     const orgId = calling.organization_id;
     if (!acc[orgId]) {
       acc[orgId] = [];
@@ -65,11 +82,80 @@ export default function OrgChart() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Ward Organization</h2>
-        <p className="text-gray-600 mt-1">
-          Current callings and assignments - Click any calling to start a calling change
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Ward Organization</h2>
+          <p className="text-gray-600 mt-1">
+            Current callings and assignments - Click any calling to start a calling change
+          </p>
+        </div>
+        <button
+          onClick={() => setMemberPaneOpen(true)}
+          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center space-x-2"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+          <span>Available Members</span>
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-6 bg-white rounded-lg shadow p-4">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex items-center">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showVacantOnly}
+                onChange={(e) => setShowVacantOnly(e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-gray-700">Show vacant callings only</span>
+            </label>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <label htmlFor="org-filter" className="text-sm font-medium text-gray-700">
+              Organization:
+            </label>
+            <select
+              id="org-filter"
+              value={selectedOrgId}
+              onChange={(e) => setSelectedOrgId(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Organizations</option>
+              {organizations?.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {(showVacantOnly || selectedOrgId !== 'all') && (
+            <button
+              onClick={() => {
+                setShowVacantOnly(false);
+                setSelectedOrgId('all');
+              }}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -232,6 +318,17 @@ export default function OrgChart() {
           </div>
         </div>
       )}
+
+      {/* Member Selection Pane */}
+      <MemberSelectionPane
+        isOpen={memberPaneOpen}
+        onClose={() => setMemberPaneOpen(false)}
+        onSelectMember={(member: Member) => {
+          console.log('Selected member:', member);
+          // Could add functionality here to auto-populate consideration
+          setMemberPaneOpen(false);
+        }}
+      />
     </div>
   );
 }
