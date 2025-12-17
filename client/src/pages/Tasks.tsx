@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getTasks, toggleTask, getBishopricMembers, updateTask } from '../api/client';
 import type { TaskStatus } from '../types';
+
+type SortField = 'task_type' | 'calling' | 'member' | 'assigned_to' | 'due_date' | 'status';
+type SortDirection = 'asc' | 'desc';
 
 export default function Tasks() {
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('pending');
   const [assignedFilter, setAssignedFilter] = useState<string>('all');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>('due_date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const queryClient = useQueryClient();
 
   const { data: tasks, isLoading } = useQuery({
@@ -36,17 +41,92 @@ export default function Tasks() {
     },
   });
 
+  // Helper function for task type labels
+  const getTaskTypeLabel = useCallback((taskType: string, notes?: string) => {
+    const labels: Record<string, string> = {
+      release_current: 'Release Current Member',
+      extend_calling: 'Extend Calling',
+      sustain_new: 'Sustain New Member',
+      release_sustained: 'Announce Release',
+      set_apart: 'Set Apart',
+      record_in_tools: 'Record in Tools',
+      notify_organization: notes ? `Notify ${notes}` : 'Notify Organization',
+    };
+    return labels[taskType] || taskType;
+  }, []);
+
+  // Handle sort header click
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle direction if clicking the same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Default to ascending when clicking a new field
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   // Get unique assigned_to values
   const assignedToOptions = [
     'all',
     ...Array.from(new Set(tasks?.map((t) => t.assigned_to).filter(Boolean) as string[])),
   ];
 
-  // Filter by assigned_to
-  const filteredTasks =
-    assignedFilter === 'all'
-      ? tasks
-      : tasks?.filter((t) => t.assigned_to === assignedFilter);
+  // Filter and sort tasks
+  const filteredTasks = useMemo(() => {
+    let filtered =
+      assignedFilter === 'all'
+        ? tasks
+        : tasks?.filter((t) => t.assigned_to === assignedFilter);
+
+    if (!filtered) return [];
+
+    // Sort the filtered tasks
+    return [...filtered].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'task_type':
+          aValue = getTaskTypeLabel(a.task_type, a.notes);
+          bValue = getTaskTypeLabel(b.task_type, b.notes);
+          break;
+        case 'calling':
+          aValue = a.calling_title || '';
+          bValue = b.calling_title || '';
+          break;
+        case 'member':
+          aValue = a.first_name && a.last_name ? `${a.first_name} ${a.last_name}` : '';
+          bValue = b.first_name && b.last_name ? `${b.first_name} ${b.last_name}` : '';
+          break;
+        case 'assigned_to':
+          aValue = a.assigned_to || '';
+          bValue = b.assigned_to || '';
+          break;
+        case 'due_date':
+          aValue = a.due_date ? new Date(a.due_date).getTime() : 0;
+          bValue = b.due_date ? new Date(b.due_date).getTime() : 0;
+          break;
+        case 'status':
+          aValue = a.status;
+          bValue = b.status;
+          break;
+        default:
+          return 0;
+      }
+
+      // Handle string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue);
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+
+      // Handle number comparison
+      const comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [tasks, assignedFilter, sortField, sortDirection, getTaskTypeLabel]);
 
   if (isLoading) {
     return (
@@ -56,16 +136,36 @@ export default function Tasks() {
     );
   }
 
-  const getTaskTypeLabel = (taskType: string) => {
-    const labels: Record<string, string> = {
-      release_current: 'Release Current Member',
-      extend_calling: 'Extend Calling',
-      sustain_new: 'Sustain New Member',
-      release_sustained: 'Announce Release',
-      set_apart: 'Set Apart',
-      record_in_tools: 'Record in Tools',
-    };
-    return labels[taskType] || taskType;
+  // Sortable header component
+  const SortableHeader = ({
+    field,
+    children,
+  }: {
+    field: SortField;
+    children: React.ReactNode;
+  }) => {
+    const isActive = sortField === field;
+    return (
+      <th
+        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+        onClick={() => handleSort(field)}
+      >
+        <div className="flex items-center gap-1">
+          {children}
+          <span className="text-gray-400">
+            {isActive ? (
+              sortDirection === 'asc' ? (
+                <span>↑</span>
+              ) : (
+                <span>↓</span>
+              )
+            ) : (
+              <span className="opacity-0 group-hover:opacity-50">↕</span>
+            )}
+          </span>
+        </div>
+      </th>
+    );
   };
 
   return (
@@ -118,24 +218,12 @@ export default function Tasks() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Task Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Calling
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Member
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Assigned To
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Due Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
+              <SortableHeader field="task_type">Task Type</SortableHeader>
+              <SortableHeader field="calling">Calling</SortableHeader>
+              <SortableHeader field="member">Member</SortableHeader>
+              <SortableHeader field="assigned_to">Assigned To</SortableHeader>
+              <SortableHeader field="due_date">Due Date</SortableHeader>
+              <SortableHeader field="status">Status</SortableHeader>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
@@ -150,7 +238,7 @@ export default function Tasks() {
                 }`}
               >
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {getTaskTypeLabel(task.task_type)}
+                  {getTaskTypeLabel(task.task_type, task.notes)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {task.calling_title || '-'}

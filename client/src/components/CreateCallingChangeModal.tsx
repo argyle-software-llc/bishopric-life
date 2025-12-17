@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getCallings, createCallingChange } from '../api/client';
 import Modal from './Modal';
 import SearchableSelect from './SearchableSelect';
+import CreateCustomCallingModal from './CreateCustomCallingModal';
 import type { CallingChangeStatus } from '../types';
 
 interface CreateCallingChangeModalProps {
@@ -18,6 +19,7 @@ export default function CreateCallingChangeModal({
   const [status, setStatus] = useState<CallingChangeStatus>('in_progress');
   const [assignedTo, setAssignedTo] = useState('');
   const [priority, setPriority] = useState(0);
+  const [customCallingModalOpen, setCustomCallingModalOpen] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -86,6 +88,13 @@ export default function CreateCallingChangeModal({
             placeholder="Search for a calling..."
             required
           />
+          <button
+            type="button"
+            onClick={() => setCustomCallingModalOpen(true)}
+            className="mt-2 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            + Create custom calling (if not in list)
+          </button>
         </div>
 
         {/* Status */}
@@ -159,6 +168,16 @@ export default function CreateCallingChangeModal({
           </button>
         </div>
       </form>
+
+      {/* Custom Calling Modal */}
+      <CreateCustomCallingModal
+        isOpen={customCallingModalOpen}
+        onClose={() => setCustomCallingModalOpen(false)}
+        onCallingCreated={(callingId) => {
+          setSelectedCallingId(callingId);
+          setCustomCallingModalOpen(false);
+        }}
+      />
     </Modal>
   );
 }

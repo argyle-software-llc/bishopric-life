@@ -16,6 +16,8 @@ router.get('/', async (req, res) => {
         ca.assigned_date,
         ca.sustained_date,
         ca.set_apart_date,
+        ca.expected_release_date,
+        ca.release_notes,
         ca.is_active as assignment_active,
         m.id as member_id,
         m.first_name,
@@ -46,6 +48,8 @@ router.get('/:id', async (req, res) => {
         ca.assigned_date,
         ca.sustained_date,
         ca.set_apart_date,
+        ca.expected_release_date,
+        ca.release_notes,
         m.id as member_id,
         m.first_name,
         m.last_name,
@@ -123,6 +127,65 @@ router.put('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error updating calling:', error);
     res.status(500).json({ error: 'Failed to update calling' });
+  }
+});
+
+// Update calling assignment (for setting expected release date)
+router.put('/:callingId/assignment/:assignmentId', async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+    const { expected_release_date, release_notes } = req.body;
+
+    const result = await pool.query(
+      `UPDATE calling_assignments SET
+        expected_release_date = $1,
+        release_notes = $2
+      WHERE id = $3
+      RETURNING *`,
+      [expected_release_date, release_notes, assignmentId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating assignment:', error);
+    res.status(500).json({ error: 'Failed to update assignment' });
+  }
+});
+
+// Get upcoming releases
+router.get('/upcoming/releases', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+        c.id as calling_id,
+        c.title as calling_title,
+        o.name as organization_name,
+        ca.id as assignment_id,
+        ca.assigned_date,
+        ca.sustained_date,
+        ca.expected_release_date,
+        ca.release_notes,
+        m.id as member_id,
+        m.first_name,
+        m.last_name,
+        m.photo_url,
+        m.phone,
+        m.email
+       FROM calling_assignments ca
+       JOIN callings c ON ca.calling_id = c.id
+       LEFT JOIN organizations o ON c.organization_id = o.id
+       JOIN members m ON ca.member_id = m.id
+       WHERE ca.is_active = true
+         AND ca.expected_release_date IS NOT NULL
+       ORDER BY ca.expected_release_date ASC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching upcoming releases:', error);
+    res.status(500).json({ error: 'Failed to fetch upcoming releases' });
   }
 });
 

@@ -27,6 +27,14 @@ export const createMember = (member: Partial<Member>) =>
 export const updateMember = (id: string, member: Partial<Member>) =>
   api.put<Member>(`/members/${id}`, member).then((res) => res.data);
 
+export const addMemberCallingNeed = (
+  memberId: string,
+  data: { status?: string; potential_callings?: string; notes?: string }
+) => api.post(`/members/${memberId}/calling-need`, data).then((res) => res.data);
+
+export const removeMemberCallingNeed = (memberId: string) =>
+  api.delete(`/members/${memberId}/calling-need`).then((res) => res.data);
+
 // Callings
 export const getCallings = () => api.get<Calling[]>('/callings').then((res) => res.data);
 
@@ -38,6 +46,18 @@ export const createCalling = (calling: Partial<Calling>) =>
 
 export const updateCalling = (id: string, calling: Partial<Calling>) =>
   api.put<Calling>(`/callings/${id}`, calling).then((res) => res.data);
+
+export const updateCallingAssignment = (
+  callingId: string,
+  assignmentId: string,
+  data: { expected_release_date?: string | null; release_notes?: string | null }
+) =>
+  api
+    .put(`/callings/${callingId}/assignment/${assignmentId}`, data)
+    .then((res) => res.data);
+
+export const getUpcomingReleases = () =>
+  api.get('/callings/upcoming/releases').then((res) => res.data);
 
 // Calling Changes
 export const getCallingChanges = (status?: string) =>

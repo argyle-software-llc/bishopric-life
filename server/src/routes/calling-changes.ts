@@ -281,11 +281,12 @@ router.post('/:id/approve', async (req, res) => {
 
     const { id } = req.params;
 
-    // Get the calling change details
+    // Get the calling change details with organization info
     const callingChange = await client.query(
-      `SELECT cc.*, c.title as calling_title
+      `SELECT cc.*, c.title as calling_title, c.organization_id as new_org_id, o.name as new_org_name
        FROM calling_changes cc
        LEFT JOIN callings c ON cc.calling_id = c.id
+       LEFT JOIN organizations o ON c.organization_id = o.id
        WHERE cc.id = $1`,
       [id]
     );
@@ -310,6 +311,18 @@ router.post('/:id/approve', async (req, res) => {
     const selectedMemberId = consideration.rows[0].member_id;
     const currentMemberId = callingChange.rows[0].current_member_id;
     const assignedTo = callingChange.rows[0].assigned_to_bishopric_member;
+    const newOrgId = callingChange.rows[0].new_org_id;
+    const newOrgName = callingChange.rows[0].new_org_name;
+
+    // Check if the selected member has any current callings in other organizations
+    const currentCallings = await client.query(
+      `SELECT c.organization_id, o.name as organization_name
+       FROM calling_assignments ca
+       JOIN callings c ON ca.calling_id = c.id
+       JOIN organizations o ON c.organization_id = o.id
+       WHERE ca.member_id = $1 AND ca.is_active = true AND c.organization_id != $2`,
+      [selectedMemberId, newOrgId]
+    );
 
     // Update the calling change with the new member and status
     await client.query(
@@ -340,7 +353,7 @@ router.post('/:id/approve', async (req, res) => {
       tasksToCreate.push({
         type: 'release_sustained',
         member_id: currentMemberId,
-        description: 'Release and sustain current member',
+        description: 'Release and thank current member',
       });
     } else {
       // If calling is vacant, no need to release anyone
@@ -368,12 +381,33 @@ router.post('/:id/approve', async (req, res) => {
       description: 'Record calling change in LCR',
     });
 
+    // Add notification tasks for organization boundaries
+    // Notify the organization where the person is coming from (if different org)
+    if (currentCallings.rows.length > 0) {
+      for (const oldCalling of currentCallings.rows) {
+        tasksToCreate.push({
+          type: 'notify_organization',
+          member_id: selectedMemberId,
+          description: `Notify ${oldCalling.organization_name} - ${selectedMemberId} being released`,
+          notes: `${oldCalling.organization_name}`,
+        });
+      }
+    }
+
+    // Always notify the new organization
+    tasksToCreate.push({
+      type: 'notify_organization',
+      member_id: selectedMemberId,
+      description: `Notify ${newOrgName} - new calling`,
+      notes: newOrgName,
+    });
+
     // Insert all tasks
     for (const task of tasksToCreate) {
       await client.query(
-        `INSERT INTO tasks (calling_change_id, task_type, member_id, assigned_to, status)
-         VALUES ($1, $2, $3, $4, 'pending')`,
-        [id, task.type, task.member_id, assignedTo]
+        `INSERT INTO tasks (calling_change_id, task_type, member_id, assigned_to, status, notes)
+         VALUES ($1, $2, $3, $4, 'pending', $5)`,
+        [id, task.type, task.member_id, assignedTo, task.notes || null]
       );
     }
 
@@ -429,6 +463,7 @@ router.post('/:id/finalize', async (req, res) => {
     await client.query('BEGIN');
 
     const { id } = req.params;
+    console.log('Finalizing calling change:', id);
 
     // Get the calling change details
     const callingChange = await client.query(
@@ -438,14 +473,17 @@ router.post('/:id/finalize', async (req, res) => {
 
     if (callingChange.rows.length === 0) {
       await client.query('ROLLBACK');
+      console.log('Calling change not found:', id);
       return res.status(404).json({ error: 'Calling change not found' });
     }
 
     const change = callingChange.rows[0];
+    console.log('Calling change found:', change);
 
     // Check if there's a new member selected
     if (!change.new_member_id) {
       await client.query('ROLLBACK');
+      console.log('No new member selected');
       return res.status(400).json({ error: 'No new member selected for this calling' });
     }
 
@@ -455,6 +493,8 @@ router.post('/:id/finalize', async (req, res) => {
        WHERE calling_change_id = $1 AND status = 'pending'`,
       [id]
     );
+
+    console.log('Incomplete tasks count:', incompleteTasks.rows[0].count);
 
     if (parseInt(incompleteTasks.rows[0].count) > 0) {
       await client.query('ROLLBACK');

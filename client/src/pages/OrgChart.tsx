@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { getCallings, getOrganizations, createCallingChange } from '../api/client';
 import { isRestrictedCalling, getTimeInCalling } from '../utils/callingUtils';
 import MemberSelectionPane from '../components/MemberSelectionPane';
+import SetReleaseExpectationModal from '../components/SetReleaseExpectationModal';
 import type { Calling, Member } from '../types';
 
 export default function OrgChart() {
@@ -11,6 +12,7 @@ export default function OrgChart() {
   const [showVacantOnly, setShowVacantOnly] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string>('all');
   const [memberPaneOpen, setMemberPaneOpen] = useState(false);
+  const [releaseExpectationModalOpen, setReleaseExpectationModalOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -276,6 +278,22 @@ export default function OrgChart() {
                           </span>
                         </div>
                       )}
+
+                      {selectedCalling.expected_release_date && (
+                        <div>
+                          <span className="text-gray-500">Expected Release:</span>{' '}
+                          <span className="font-medium text-orange-600">
+                            {new Date(selectedCalling.expected_release_date).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+
+                      {selectedCalling.release_notes && (
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Release Notes:</span>{' '}
+                          <span className="font-medium">{selectedCalling.release_notes}</span>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div>
@@ -283,6 +301,19 @@ export default function OrgChart() {
                     </div>
                   )}
                 </div>
+
+                {selectedCalling.member_id && (
+                  <div className="mt-3">
+                    <button
+                      onClick={() => setReleaseExpectationModalOpen(true)}
+                      className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {selectedCalling.expected_release_date
+                        ? 'Edit Expected Release'
+                        : '+ Set Expected Release Date'}
+                    </button>
+                  </div>
+                )}
 
                 {isRestricted && (
                   <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-md">
@@ -329,6 +360,24 @@ export default function OrgChart() {
           setMemberPaneOpen(false);
         }}
       />
+
+      {/* Set Release Expectation Modal */}
+      {selectedCalling && (
+        <SetReleaseExpectationModal
+          isOpen={releaseExpectationModalOpen}
+          onClose={() => setReleaseExpectationModalOpen(false)}
+          calling={{
+            calling_id: selectedCalling.id,
+            assignment_id: selectedCalling.assignment_id,
+            calling_title: selectedCalling.title,
+            organization_name: selectedCalling.organization_name,
+            first_name: selectedCalling.first_name,
+            last_name: selectedCalling.last_name,
+            expected_release_date: selectedCalling.expected_release_date,
+            release_notes: selectedCalling.release_notes,
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -83,7 +83,26 @@ export default function CallingChanges() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['calling-changes'] });
     },
+    onError: (error: any) => {
+      console.error('Error finalizing calling change:', error);
+      const errorMessage =
+        error.response?.data?.error || error.message || 'Failed to finalize calling change';
+      alert(`Error: ${errorMessage}`);
+    },
   });
+
+  // Get task number based on task type (logical order)
+  const getTaskNumber = (taskType: string) => {
+    const taskOrder: Record<string, number> = {
+      extend_calling: 1,
+      release_current: 2,
+      release_sustained: 3,
+      sustain_new: 4,
+      record_in_tools: 5,
+      set_apart: 6,
+    };
+    return taskOrder[taskType] || 0;
+  };
 
   if (isLoading) {
     return (
@@ -350,6 +369,15 @@ export default function CallingChanges() {
                               : 'bg-white border-gray-200'
                           }`}
                         >
+                          {task.task_type === 'notify_organization' ? (
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs flex-shrink-0">
+                              🔔
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold flex-shrink-0">
+                              {getTaskNumber(task.task_type)}
+                            </div>
+                          )}
                           <input
                             type="checkbox"
                             checked={task.status === 'completed'}
@@ -369,14 +397,26 @@ export default function CallingChanges() {
                               {task.task_type === 'extend_calling' && 'Extend calling to new member'}
                               {task.task_type === 'sustain_new' && 'Sustain new member'}
                               {task.task_type === 'release_sustained' &&
-                                'Release and sustain current member'}
+                                'Release and thank current member'}
                               {task.task_type === 'set_apart' && 'Set apart new member'}
                               {task.task_type === 'record_in_tools' && 'Record in LCR'}
-                              {task.first_name && task.last_name && (
-                                <span className="text-xs text-gray-500 ml-2">
-                                  ({task.first_name} {task.last_name})
-                                </span>
+                              {task.task_type === 'notify_organization' && (
+                                <>
+                                  Notify {task.notes}
+                                  {task.first_name && task.last_name && (
+                                    <span className="text-xs text-gray-500 ml-2">
+                                      (re: {task.first_name} {task.last_name})
+                                    </span>
+                                  )}
+                                </>
                               )}
+                              {task.task_type !== 'notify_organization' &&
+                                task.first_name &&
+                                task.last_name && (
+                                  <span className="text-xs text-gray-500 ml-2">
+                                    ({task.first_name} {task.last_name})
+                                  </span>
+                                )}
                             </div>
                           </div>
                         </div>

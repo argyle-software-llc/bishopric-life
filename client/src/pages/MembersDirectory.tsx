@@ -1,20 +1,73 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getMembers } from '../api/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getMembers, getMembersNeedingCallings, addMemberCallingNeed, removeMemberCallingNeed, updateMember } from '../api/client';
 
 export default function MembersDirectory() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'availability'>('name');
+  const queryClient = useQueryClient();
 
   const { data: members, isLoading } = useQuery({
     queryKey: ['members'],
     queryFn: getMembers,
   });
 
-  // Filter members based on search (only show active members)
+  const { data: membersNeedingCallings } = useQuery({
+    queryKey: ['members-needing-callings'],
+    queryFn: getMembersNeedingCallings,
+  });
+
+  const tagMemberMutation = useMutation({
+    mutationFn: (memberId: string) => addMemberCallingNeed(memberId, { status: 'active' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members-needing-callings'] });
+    },
+  });
+
+  const untagMemberMutation = useMutation({
+    mutationFn: removeMemberCallingNeed,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members-needing-callings'] });
+    },
+  });
+
+  const updateAvailabilityMutation = useMutation({
+    mutationFn: ({ memberId, availability }: { memberId: string; availability: number | null }) =>
+      updateMember(memberId, { availability: availability === null ? undefined : availability }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+    },
+  });
+
+  // Create a set of member IDs who are tagged as needing callings
+  const taggedMemberIds = useMemo(() => {
+    return new Set(
+      membersNeedingCallings
+        ?.filter((m) => m.status === 'active' || m.status === 'hold')
+        .map((m) => m.id) || []
+    );
+  }, [membersNeedingCallings]);
+
+  const isTagged = (memberId: string) => taggedMemberIds.has(memberId);
+
+  const handleToggleTag = (memberId: string) => {
+    if (isTagged(memberId)) {
+      untagMemberMutation.mutate(memberId);
+    } else {
+      tagMemberMutation.mutate(memberId);
+    }
+  };
+
+  const handleAvailabilityChange = (memberId: string, availability: string) => {
+    const availabilityNum = availability === '' ? null : parseInt(availability);
+    updateAvailabilityMutation.mutate({ memberId, availability: availabilityNum });
+  };
+
+  // Filter and sort members based on search and sort option
   const filteredMembers = useMemo(() => {
     if (!members) return [];
 
-    return members.filter((member) => {
+    const filtered = members.filter((member) => {
       // Only show active members
       if (!member.is_active) return false;
 
@@ -36,7 +89,23 @@ export default function MembersDirectory() {
 
       return true;
     });
-  }, [members, searchTerm]);
+
+    // Sort members
+    return filtered.sort((a, b) => {
+      if (sortBy === 'availability') {
+        // Sort by availability (1-5, with null/undefined at the end)
+        const aAvailability = a.availability ?? 999;
+        const bAvailability = b.availability ?? 999;
+        if (aAvailability !== bAvailability) {
+          return aAvailability - bAvailability;
+        }
+      }
+      // Fall back to name sorting
+      const nameA = `${a.last_name}, ${a.first_name}`;
+      const nameB = `${b.last_name}, ${b.first_name}`;
+      return nameA.localeCompare(nameB);
+    });
+  }, [members, searchTerm, sortBy]);
 
   if (isLoading) {
     return (
@@ -55,15 +124,23 @@ export default function MembersDirectory() {
         </p>
       </div>
 
-      {/* Search */}
-      <div className="mb-6">
+      {/* Search and Sort */}
+      <div className="mb-6 flex gap-4">
         <input
           type="text"
           placeholder="Search by name, household, calling, phone, or email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as 'name' | 'availability')}
+          className="border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="name">Sort by Name</option>
+          <option value="availability">Sort by Availability</option>
+        </select>
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -74,6 +151,9 @@ export default function MembersDirectory() {
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Availability
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Current Callings
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -82,12 +162,15 @@ export default function MembersDirectory() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Contact
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredMembers.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                   No members found
                 </td>
               </tr>
@@ -121,6 +204,21 @@ export default function MembersDirectory() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
+                    <select
+                      value={member.availability || ''}
+                      onChange={(e) => handleAvailabilityChange(member.id, e.target.value)}
+                      disabled={updateAvailabilityMutation.isPending}
+                      className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    >
+                      <option value="">None</option>
+                      <option value="1">1 - High</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5 - Low</option>
+                    </select>
+                  </td>
+                  <td className="px-6 py-4">
                     {member.callings && member.callings.length > 0 ? (
                       <div className="space-y-1">
                         {member.callings.map((calling) => (
@@ -140,9 +238,6 @@ export default function MembersDirectory() {
                     <div className="text-sm text-gray-900">
                       {member.household_name || '-'}
                     </div>
-                    {member.address && (
-                      <div className="text-xs text-gray-500">{member.address}</div>
-                    )}
                   </td>
                   <td className="px-6 py-4">
                     {member.phone && (
@@ -154,6 +249,20 @@ export default function MembersDirectory() {
                     {!member.phone && !member.email && (
                       <span className="text-sm text-gray-400">-</span>
                     )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => handleToggleTag(member.id)}
+                      disabled={tagMemberMutation.isPending || untagMemberMutation.isPending}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isTagged(member.id)
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                          : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                      }`}
+                      title={isTagged(member.id) ? 'Remove from needs calling list' : 'Tag as needing calling'}
+                    >
+                      {isTagged(member.id) ? '✓ Tagged' : 'Needs Calling'}
+                    </button>
                   </td>
                 </tr>
               ))

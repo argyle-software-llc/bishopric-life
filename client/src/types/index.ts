@@ -13,6 +13,7 @@ export interface Member {
   age?: number;
   gender?: string;
   is_active: boolean;
+  availability?: number;
   callings?: MemberCalling[];
   created_at: string;
   updated_at: string;
@@ -58,6 +59,8 @@ export interface Calling {
   assigned_date?: string;
   sustained_date?: string;
   set_apart_date?: string;
+  expected_release_date?: string;
+  release_notes?: string;
   assignment_active?: boolean;
   member_id?: string;
   first_name?: string;
@@ -115,7 +118,8 @@ export type TaskType =
   | 'sustain_new'
   | 'release_sustained'
   | 'set_apart'
-  | 'record_in_tools';
+  | 'record_in_tools'
+  | 'notify_organization';
 
 export type TaskStatus = 'pending' | 'completed';
 

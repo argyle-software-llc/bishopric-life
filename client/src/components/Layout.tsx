@@ -32,6 +32,12 @@ export default function Layout() {
                 <Link to="/calling-changes" className={navLinkClass('/calling-changes')}>
                   Calling Changes
                 </Link>
+                <Link to="/upcoming-releases" className={navLinkClass('/upcoming-releases')}>
+                  Upcoming Releases
+                </Link>
+                <Link to="/members-needing-callings" className={navLinkClass('/members-needing-callings')}>
+                  Needs Calling
+                </Link>
                 <Link to="/prayer-list" className={navLinkClass('/prayer-list')}>
                   Prayer List
                 </Link>

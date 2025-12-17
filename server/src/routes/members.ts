@@ -124,8 +124,9 @@ router.put('/:id', async (req, res) => {
         phone = COALESCE($5, phone),
         email = COALESCE($6, email),
         age = COALESCE($7, age),
-        is_active = COALESCE($8, is_active)
-      WHERE id = $9
+        is_active = COALESCE($8, is_active),
+        availability = COALESCE($9, availability)
+      WHERE id = $10
       RETURNING *`,
       [
         member.first_name,
@@ -136,6 +137,7 @@ router.put('/:id', async (req, res) => {
         member.email,
         member.age,
         member.is_active,
+        member.availability,
         id,
       ]
     );
@@ -146,6 +148,75 @@ router.put('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error updating member:', error);
     res.status(500).json({ error: 'Failed to update member' });
+  }
+});
+
+// Add or update a member's calling need
+router.post('/:id/calling-need', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, potential_callings, notes } = req.body;
+
+    // Check if member exists
+    const memberCheck = await pool.query('SELECT id FROM members WHERE id = $1', [id]);
+    if (memberCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+
+    // Check if calling need already exists
+    const existing = await pool.query(
+      'SELECT id FROM member_calling_needs WHERE member_id = $1',
+      [id]
+    );
+
+    let result;
+    if (existing.rows.length > 0) {
+      // Update existing record
+      result = await pool.query(
+        `UPDATE member_calling_needs
+         SET status = COALESCE($1, status),
+             potential_callings = COALESCE($2, potential_callings),
+             notes = COALESCE($3, notes),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE member_id = $4
+         RETURNING *`,
+        [status, potential_callings, notes, id]
+      );
+    } else {
+      // Create new record
+      result = await pool.query(
+        `INSERT INTO member_calling_needs (member_id, status, potential_callings, notes)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *`,
+        [id, status || 'active', potential_callings, notes]
+      );
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error managing calling need:', error);
+    res.status(500).json({ error: 'Failed to manage calling need' });
+  }
+});
+
+// Remove a member from calling needs
+router.delete('/:id/calling-need', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      'DELETE FROM member_calling_needs WHERE member_id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Calling need not found' });
+    }
+
+    res.json({ message: 'Calling need removed successfully' });
+  } catch (error) {
+    console.error('Error removing calling need:', error);
+    res.status(500).json({ error: 'Failed to remove calling need' });
   }
 });
 
