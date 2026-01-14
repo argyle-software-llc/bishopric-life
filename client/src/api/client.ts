@@ -10,7 +10,19 @@ import type {
 
 const api = axios.create({
   baseURL: '/api',
+  withCredentials: true,
 });
+
+// Redirect to login on 401
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && !window.location.pathname.includes('/login')) {
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Members
 export const getMembers = () => api.get<Member[]>('/members').then((res) => res.data);
@@ -137,3 +149,26 @@ export const completeTask = (id: string) =>
 
 export const toggleTask = (id: string) =>
   api.post<Task>(`/tasks/${id}/toggle`).then((res) => res.data);
+
+// Users (Admin)
+export interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  picture: string | null;
+  allowed: boolean;
+  created_at: string;
+  last_login: string | null;
+}
+
+export const getUsers = () =>
+  api.get<User[]>('/users').then((res) => res.data);
+
+export const addUser = (email: string) =>
+  api.post<User>('/users', { email }).then((res) => res.data);
+
+export const deleteUser = (id: string) =>
+  api.delete(`/users/${id}`).then((res) => res.data);
+
+export const toggleUserAllowed = (id: string) =>
+  api.patch<User>(`/users/${id}/toggle`).then((res) => res.data);

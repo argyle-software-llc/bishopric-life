@@ -15,6 +15,10 @@ export interface Member {
   is_active: boolean;
   availability?: number;
   callings?: MemberCalling[];
+  // From member_calling_needs join
+  status?: 'active' | 'hold';
+  potential_callings?: string;
+  notes?: string;
   created_at: string;
   updated_at: string;
 }

@@ -46,15 +46,18 @@ export default function UpcomingReleases() {
   }
 
   // Group releases by month
-  const groupedReleases = releases?.reduce((acc, release) => {
-    const date = new Date(release.expected_release_date);
-    const monthYear = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    if (!acc[monthYear]) {
-      acc[monthYear] = [];
-    }
-    acc[monthYear].push(release);
-    return acc;
-  }, {} as Record<string, UpcomingRelease[]>);
+  const groupedReleases = (releases as UpcomingRelease[] | undefined)?.reduce(
+    (acc: Record<string, UpcomingRelease[]>, release: UpcomingRelease) => {
+      const date = new Date(release.expected_release_date);
+      const monthYear = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      if (!acc[monthYear]) {
+        acc[monthYear] = [];
+      }
+      acc[monthYear].push(release);
+      return acc;
+    },
+    {} as Record<string, UpcomingRelease[]>
+  );
 
   const getDaysUntil = (dateString: string) => {
     const date = new Date(dateString);
@@ -72,25 +75,48 @@ export default function UpcomingReleases() {
     return 'text-gray-600'; // More than a month
   };
 
+  const handleReleaseClick = (release: UpcomingRelease) => {
+    const dateStr = release.expected_release_date
+      ? new Date(release.expected_release_date).toISOString().split('T')[0]
+      : '';
+
+    setSelectedCalling({
+      id: release.calling_id,
+      assignment_id: release.assignment_id,
+      title: release.calling_title,
+      organization_name: release.organization_name,
+      first_name: release.first_name,
+      last_name: release.last_name,
+      expected_release_date: dateStr,
+      release_notes: release.release_notes,
+      organization_id: '',
+      requires_setting_apart: true,
+      display_order: 0,
+      created_at: '',
+      updated_at: '',
+    });
+    setReleaseExpectationModalOpen(true);
+  };
+
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Upcoming Releases</h2>
-          <p className="text-gray-600 mt-1">
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">
             Track callings with expected release dates
           </p>
         </div>
         <button
           onClick={() => setSearchModalOpen(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shrink-0"
         >
           + Add Expected Release
         </button>
       </div>
 
       {releases?.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
+        <div className="bg-white rounded-lg shadow p-8 sm:p-12 text-center">
           <p className="text-gray-500">No upcoming releases scheduled</p>
           <p className="text-sm text-gray-400 mt-2">
             Set expected release dates on current callings to track them here
@@ -98,10 +124,70 @@ export default function UpcomingReleases() {
         </div>
       ) : (
         <div className="space-y-6">
-          {Object.entries(groupedReleases || {}).map(([monthYear, monthReleases]) => (
+          {Object.entries(groupedReleases || {}).map(([monthYear, monthReleases]: [string, UpcomingRelease[]]) => (
             <div key={monthYear}>
               <h3 className="text-lg font-semibold text-gray-700 mb-3">{monthYear}</h3>
-              <div className="bg-white rounded-lg shadow overflow-hidden">
+
+              {/* Mobile: Card view */}
+              <div className="md:hidden space-y-3">
+                {monthReleases.map((release) => {
+                  const daysUntil = getDaysUntil(release.expected_release_date);
+                  return (
+                    <div
+                      key={release.assignment_id}
+                      onClick={() => handleReleaseClick(release)}
+                      className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-3">
+                          {release.photo_url ? (
+                            <img
+                              src={release.photo_url}
+                              alt={`${release.first_name} ${release.last_name}`}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                              <span className="text-gray-600 text-sm">
+                                {release.first_name[0]}{release.last_name[0]}
+                              </span>
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {release.first_name} {release.last_name}
+                            </div>
+                            <div className="text-sm text-gray-600">{release.calling_title}</div>
+                            <div className="text-xs text-gray-500">{release.organization_name}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-sm ${getUrgencyColor(daysUntil)}`}>
+                            {new Date(release.expected_release_date).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {daysUntil < 0
+                              ? `${Math.abs(daysUntil)}d overdue`
+                              : daysUntil === 0
+                              ? 'Today'
+                              : daysUntil === 1
+                              ? 'Tomorrow'
+                              : `${daysUntil}d`}
+                          </div>
+                        </div>
+                      </div>
+                      {release.release_notes && (
+                        <div className="mt-2 text-sm text-gray-600 border-t pt-2">
+                          {release.release_notes}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: Table view */}
+              <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -128,29 +214,7 @@ export default function UpcomingReleases() {
                       return (
                         <tr
                           key={release.assignment_id}
-                          onClick={() => {
-                            // Convert date to YYYY-MM-DD format for the input
-                            const dateStr = release.expected_release_date
-                              ? new Date(release.expected_release_date).toISOString().split('T')[0]
-                              : '';
-
-                            setSelectedCalling({
-                              id: release.calling_id,
-                              assignment_id: release.assignment_id,
-                              title: release.calling_title,
-                              organization_name: release.organization_name,
-                              first_name: release.first_name,
-                              last_name: release.last_name,
-                              expected_release_date: dateStr,
-                              release_notes: release.release_notes,
-                              organization_id: '',
-                              requires_setting_apart: true,
-                              display_order: 0,
-                              created_at: '',
-                              updated_at: '',
-                            });
-                            setReleaseExpectationModalOpen(true);
-                          }}
+                          onClick={() => handleReleaseClick(release)}
                           className="hover:bg-gray-50 cursor-pointer"
                         >
                           <td className="px-6 py-4">

@@ -5,6 +5,10 @@ lcr.credentials.json
 .lcr_cookies.json
 .lcr_tokens.json
 
+# AWS SSH keys - NEVER commit these
+*.pem
+bishopric-life-key.pem
+
 # Node
 node_modules/
 dist/

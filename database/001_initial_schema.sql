@@ -24,6 +24,7 @@ CREATE TABLE members (
     age INT,
     gender VARCHAR(20),
     is_active BOOLEAN DEFAULT true,
+    availability INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -61,12 +62,15 @@ CREATE TABLE calling_assignments (
     sustained_date DATE,
     set_apart_date DATE,
     is_active BOOLEAN DEFAULT true,
+    released_date DATE,
+    expected_release_date DATE,
+    release_notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Calling changes workflow
-CREATE TYPE calling_change_status AS ENUM ('hold', 'in_progress', 'completed');
+CREATE TYPE calling_change_status AS ENUM ('hold', 'in_progress', 'approved', 'completed');
 
 CREATE TABLE calling_changes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -114,7 +118,8 @@ CREATE TYPE task_type AS ENUM (
     'sustain_new',
     'release_sustained',
     'set_apart',
-    'record_in_tools'
+    'record_in_tools',
+    'notify_organization'
 );
 
 CREATE TYPE task_status AS ENUM ('pending', 'completed');

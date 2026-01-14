@@ -25,7 +25,16 @@ router.get('/bishopric', async (req, res) => {
          AND c.title ILIKE '%bishop%'
        ORDER BY m.first_name, m.last_name, sort_order, m.last_name`
     );
-    res.json(result.rows);
+
+    // Add additional assignees (temporary until proper role management)
+    const additionalAssignees = [
+      { first_name: 'Brad', last_name: 'Chase', title: 'Ward Clerk', sort_order: 5 },
+      { first_name: 'Jarom', last_name: 'Brown', title: 'Executive Secretary', sort_order: 6 },
+      { first_name: 'Brian', last_name: 'Scott', title: 'Assistant Executive Secretary', sort_order: 7 },
+    ];
+
+    const allMembers = [...result.rows, ...additionalAssignees];
+    res.json(allMembers);
   } catch (error) {
     console.error('Error fetching bishopric members:', error);
     res.status(500).json({ error: 'Failed to fetch bishopric members' });

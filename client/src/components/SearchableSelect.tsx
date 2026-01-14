@@ -128,7 +128,7 @@ export default function SearchableSelect({
                   <div className="px-3 py-2 text-xs font-semibold text-gray-500 bg-gray-50 sticky top-0">
                     {group}
                   </div>
-                  {groupOptions.map((option, index) => {
+                  {groupOptions.map((option) => {
                     const globalIndex = filteredOptions.indexOf(option);
                     return (
                       <div
