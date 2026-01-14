@@ -250,13 +250,12 @@ lsof -ti:3003 | xargs kill -9
 
 ## Future Enhancements
 
-- Auto-populate considerations from member selection pane
-- Interactive org chart with drag-and-drop
-- Member household modal view
-- Photo syncing from LCR
-- Reporting and analytics
-- Authentication and authorization
-- Multi-user support with role-based access
+See [TODO.md](TODO.md) for the full list of planned enhancements.
+
+### Completed
+- ✅ Authentication and authorization
+- ✅ Multi-user support with role-based access
+- ✅ Docker containerization and AWS deployment
 
 ## License
 
