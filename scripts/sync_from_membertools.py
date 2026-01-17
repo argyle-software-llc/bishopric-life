@@ -215,6 +215,16 @@ def sync_members_and_households(data: Dict, conn) -> Dict[str, str]:
         if not household_uuid:
             continue
 
+        # Skip households without names (can't insert null)
+        if not household_name:
+            # Try to get name from first member
+            members = household.get('members', [])
+            if members:
+                first_member = members[0]
+                household_name = first_member.get('displayName') or first_member.get('preferredName') or 'Unknown'
+            else:
+                household_name = 'Unknown'
+
         # Upsert household
         cur.execute(
             """
@@ -318,11 +328,29 @@ def sync_members_and_households(data: Dict, conn) -> Dict[str, str]:
 
 
 def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str, str]):
-    """Sync organizations and callings from membertools data."""
+    """Sync organizations and callings from membertools data.
+
+    Note: In membertools API, calling positions are stored within each member's
+    'positions' array, not in the organizations structure. The organizations
+    only contain UUIDs referencing positions.
+    """
     cur = conn.cursor()
 
     organizations = data.get('organizations', [])
+    households = data.get('households', [])
     print(f"Processing {len(organizations)} organizations...")
+
+    # Org type to display name mapping
+    ORG_TYPE_NAMES = {
+        'BISHOPRIC': 'Bishopric',
+        'ELDERS_QUORUM': 'Elders Quorum',
+        'RELIEF_SOCIETY': 'Relief Society',
+        'YOUNG_MEN': 'Young Men',
+        'YOUNG_WOMEN': 'Young Women',
+        'PRIMARY': 'Primary',
+        'SUNDAY_SCHOOL': 'Sunday School',
+        'HIGH_PRIEST': 'High Priests',
+    }
 
     def get_or_create_org(name: str, parent_id: Optional[str] = None) -> str:
         cur.execute(
@@ -352,45 +380,44 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
         )
         return cur.fetchone()[0]
 
+    # First, create organizations from the org structure
     for org in organizations:
         org_name = org.get('name', 'Unknown')
-        unit_number = org.get('unitNumber')
+        get_or_create_org(org_name)
 
-        org_id = get_or_create_org(org_name)
+    # Now extract callings from member positions
+    # Positions are stored in each member's 'positions' array
+    callings_processed = 0
+    for household in households:
+        for member in household.get('members', []):
+            member_uuid = member.get('uuid')
+            if not member_uuid or member_uuid not in member_uuid_map:
+                continue
 
-        # Process callings (positions) in this organization
-        for position in org.get('positions', []):
-            calling_title = position.get('name', 'Unknown Position')
-            calling_id = get_or_create_calling(org_id, calling_title)
+            member_db_id = member_uuid_map[member_uuid]
 
-            # Check if someone is assigned
-            holder_uuid = position.get('memberUuid')
-            active_date = position.get('activeDate')
-            set_apart = position.get('setApart', False)
+            for position in member.get('positions', []):
+                if not isinstance(position, dict):
+                    continue
 
-            if holder_uuid and holder_uuid in member_uuid_map:
-                member_db_id = member_uuid_map[holder_uuid]
+                position_name = position.get('name', 'Unknown Position')
+                position_type = position.get('type', '')
+                unit_name = position.get('unitName', '')
 
-                # Parse active date
-                sustained_date = None
-                if active_date:
-                    try:
-                        sustained_date = datetime.strptime(str(active_date), '%Y%m%d').date()
-                    except:
-                        try:
-                            sustained_date = datetime.strptime(str(active_date), '%Y-%m-%d').date()
-                        except:
-                            pass
+                # Determine organization name from position type or unit name
+                # Try to match to an existing org or create one
+                org_name = None
+                for org_type, display_name in ORG_TYPE_NAMES.items():
+                    if org_type in position_type.upper():
+                        org_name = display_name
+                        break
 
-                # Deactivate other assignments for this calling
-                cur.execute(
-                    """
-                    UPDATE calling_assignments
-                    SET is_active = false
-                    WHERE calling_id = %s AND is_active = true AND member_id <> %s
-                    """,
-                    (calling_id, member_db_id),
-                )
+                if not org_name:
+                    # Use unit name or fall back to "Ward"
+                    org_name = unit_name if unit_name else 'Ward'
+
+                org_id = get_or_create_org(org_name)
+                calling_id = get_or_create_calling(org_id, position_name)
 
                 # Upsert assignment
                 cur.execute(
@@ -403,36 +430,29 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
                     cur.execute(
                         """
                         UPDATE calling_assignments
-                        SET is_active = true,
-                            sustained_date = COALESCE(%s, sustained_date),
-                            set_apart_date = COALESCE(%s, set_apart_date)
+                        SET is_active = true
                         WHERE id = %s
                         """,
-                        (
-                            sustained_date,
-                            datetime.today().date() if set_apart else None,
-                            existing[0],
-                        ),
+                        (existing[0],),
                     )
                 else:
                     cur.execute(
                         """
                         INSERT INTO calling_assignments (
-                            calling_id, member_id, is_active, assigned_date, sustained_date, set_apart_date
-                        ) VALUES (%s, %s, true, %s, %s, %s)
+                            calling_id, member_id, is_active, assigned_date
+                        ) VALUES (%s, %s, true, %s)
                         """,
                         (
                             calling_id,
                             member_db_id,
-                            sustained_date or datetime.today().date(),
-                            sustained_date,
-                            datetime.today().date() if set_apart else None,
+                            datetime.today().date(),
                         ),
                     )
+                callings_processed += 1
 
     conn.commit()
     cur.close()
-    print(f"Synced {len(organizations)} organizations with callings")
+    print(f"Synced {len(organizations)} organizations, {callings_processed} calling assignments")
 
 
 def print_youth_interviews_summary(data: Dict, member_uuid_map: Dict[str, str]):
