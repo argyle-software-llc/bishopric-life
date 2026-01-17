@@ -172,3 +172,24 @@ export const deleteUser = (id: string) =>
 
 export const toggleUserAllowed = (id: string) =>
   api.patch<User>(`/users/${id}/toggle`).then((res) => res.data);
+
+// Sync
+export interface SyncStatus {
+  syncInProgress: boolean;
+  lastSyncTime: string | null;
+  lastSyncStatus: 'success' | 'failed' | null;
+  tokensConfigured: boolean;
+}
+
+export interface SyncOutput extends SyncStatus {
+  output: string;
+}
+
+export const getSyncStatus = () =>
+  api.get<SyncStatus>('/sync/status').then((res) => res.data);
+
+export const triggerSync = () =>
+  api.post<{ success: boolean; message: string }>('/sync/trigger').then((res) => res.data);
+
+export const getSyncOutput = () =>
+  api.get<SyncOutput>('/sync/output').then((res) => res.data);

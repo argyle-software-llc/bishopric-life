@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import cron from 'node-cron';
 import membersRouter from './routes/members';
 import callingsRouter from './routes/callings';
 import callingChangesRouter from './routes/calling-changes';
@@ -9,6 +10,7 @@ import organizationsRouter from './routes/organizations';
 import tasksRouter from './routes/tasks';
 import authRouter from './routes/auth';
 import usersRouter from './routes/users';
+import syncRouter, { triggerScheduledSync } from './routes/sync';
 import { requireAuth } from './middleware/auth';
 
 dotenv.config();
@@ -39,6 +41,7 @@ app.use('/api/calling-changes', requireAuth, callingChangesRouter);
 app.use('/api/organizations', requireAuth, organizationsRouter);
 app.use('/api/tasks', requireAuth, tasksRouter);
 app.use('/api/users', requireAuth, usersRouter);
+app.use('/api/sync', requireAuth, syncRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -48,3 +51,11 @@ app.get('/api/health', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// Schedule daily sync at 2 AM
+const SYNC_CRON = process.env.SYNC_CRON || '0 2 * * *';
+cron.schedule(SYNC_CRON, () => {
+  console.log('Running scheduled sync...');
+  triggerScheduledSync();
+});
+console.log(`Scheduled sync configured: ${SYNC_CRON}`);
