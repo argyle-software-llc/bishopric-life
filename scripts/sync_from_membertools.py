@@ -195,25 +195,44 @@ class OAuthClient:
 # Data Processing
 # =============================================================================
 
-def sync_members_and_households(data: Dict, conn) -> Dict[str, str]:
+def sync_members_and_households(data: Dict, conn, home_unit: int = None) -> Dict[str, str]:
     """
     Sync members and households from membertools data.
     Returns a mapping of member_uuid -> database_id
+
+    Args:
+        data: The sync data from membertools API
+        conn: Database connection
+        home_unit: If provided, only sync this unit number (ward)
     """
     cur = conn.cursor()
     member_uuid_map = {}
 
     households = data.get('households', [])
-    print(f"Processing {len(households)} households...")
+
+    # Filter to home unit if specified
+    if home_unit:
+        households = [h for h in households if h.get('unitNumber') == home_unit]
+        print(f"Filtering to unit {home_unit}: {len(households)} households")
+    else:
+        print(f"Processing {len(households)} households...")
 
     for household in households:
         household_uuid = household.get('uuid')
-        household_name = household.get('displayName') or household.get('familyName')
-        address = household.get('address')
         unit_number = household.get('unitNumber')
 
         if not household_uuid:
             continue
+
+        # Get household name from nested 'names' object
+        names = household.get('names', {}) or {}
+        household_name = names.get('listed') or names.get('family')
+
+        # Get address from nested 'addresses' array
+        addresses = household.get('addresses', [])
+        address = None
+        if addresses and isinstance(addresses, list) and addresses[0]:
+            address = addresses[0].get('formatted')
 
         # Skip households without names (can't insert null)
         if not household_name:
@@ -221,7 +240,8 @@ def sync_members_and_households(data: Dict, conn) -> Dict[str, str]:
             members = household.get('members', [])
             if members:
                 first_member = members[0]
-                household_name = first_member.get('displayName') or first_member.get('preferredName') or 'Unknown'
+                member_names = first_member.get('names', {}) or {}
+                household_name = member_names.get('spoken') or member_names.get('listed') or 'Unknown'
             else:
                 household_name = 'Unknown'
 
@@ -243,19 +263,30 @@ def sync_members_and_households(data: Dict, conn) -> Dict[str, str]:
             if not member_uuid:
                 continue
 
-            # Parse name
-            preferred_name = member.get('preferredName', '')
-            given_name = member.get('givenName', '')
-            display_name = member.get('displayName', '')
+            # Parse name from nested 'names' object
+            member_names = member.get('names', {}) or {}
+            parts = member_names.get('parts', {}) or {}
+
+            # Extract first and last name
+            given_name = parts.get('given', '')
+            spoken_name = member_names.get('spoken', '')
+            listed_name = member_names.get('listed', '')
 
             # Try to extract first/last name
-            if ',' in display_name:
-                parts = display_name.split(',', 1)
-                last_name = parts[0].strip()
-                first_name = parts[1].strip().split()[0] if parts[1].strip() else given_name
+            if listed_name and ',' in listed_name:
+                name_parts = listed_name.split(',', 1)
+                last_name = name_parts[0].strip()
+                first_name = name_parts[1].strip().split()[0] if name_parts[1].strip() else given_name
+            elif spoken_name:
+                # "Chris Alleman" -> first="Chris", last="Alleman"
+                spoken_parts = spoken_name.split()
+                first_name = spoken_parts[0] if spoken_parts else given_name
+                last_name = ' '.join(spoken_parts[1:]) if len(spoken_parts) > 1 else ''
             else:
                 first_name = given_name
-                last_name = household_name.split(',')[0] if household_name else ''
+                # Get family name from household
+                hh_names = household.get('names', {}) or {}
+                last_name = hh_names.get('family', '')
 
             # Contact info
             email = None
@@ -327,17 +358,27 @@ def sync_members_and_households(data: Dict, conn) -> Dict[str, str]:
     return member_uuid_map
 
 
-def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str, str]):
+def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str, str], home_unit: int = None):
     """Sync organizations and callings from membertools data.
 
     Note: In membertools API, calling positions are stored within each member's
     'positions' array, not in the organizations structure. The organizations
     only contain UUIDs referencing positions.
+
+    Args:
+        data: The sync data from membertools API
+        conn: Database connection
+        member_uuid_map: Mapping of member UUID to database ID
+        home_unit: If provided, only sync positions for this unit number (ward)
     """
     cur = conn.cursor()
 
     organizations = data.get('organizations', [])
     households = data.get('households', [])
+
+    # Filter households to home unit if specified
+    if home_unit:
+        households = [h for h in households if h.get('unitNumber') == home_unit]
     print(f"Processing {len(organizations)} organizations...")
 
     # Org type to display name mapping
@@ -398,6 +439,11 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
 
             for position in member.get('positions', []):
                 if not isinstance(position, dict):
+                    continue
+
+                # Filter positions to home unit if specified
+                position_unit = position.get('unitNumber')
+                if home_unit and position_unit and position_unit != home_unit:
                     continue
 
                 position_name = position.get('name', 'Unknown Position')
@@ -557,6 +603,10 @@ def main():
         print(f"  Action Interviews: {len(data.get('actionInterviews', []))}")
         print(f"  Temple Recommend Records: {len(data.get('templeRecommendStatus', []))}")
 
+        home_units = user.get('homeUnits', [])
+        home_unit = home_units[0] if home_units else None
+        print(f"Home unit: {home_unit}")
+
         if DRY_RUN:
             print("\nDRY_RUN=1: Skipping database writes")
             print_youth_interviews_summary(data, {})
@@ -567,11 +617,11 @@ def main():
             conn = get_db_connection()
             print("Connected to database")
 
-            # Sync members and households
-            member_uuid_map = sync_members_and_households(data, conn)
+            # Sync members and households (filtered to home unit)
+            member_uuid_map = sync_members_and_households(data, conn, home_unit)
 
-            # Sync organizations and callings
-            sync_organizations_and_callings(data, conn, member_uuid_map)
+            # Sync organizations and callings (filtered to home unit)
+            sync_organizations_and_callings(data, conn, member_uuid_map, home_unit)
 
             # Print summaries for new data types (until we add DB tables)
             print_youth_interviews_summary(data, member_uuid_map)
