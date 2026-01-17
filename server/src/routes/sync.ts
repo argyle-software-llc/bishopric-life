@@ -12,9 +12,12 @@ let lastSyncStatus: 'success' | 'failed' | null = null;
 let lastSyncOutput: string = '';
 
 // Path to sync script and tokens
-const SCRIPTS_DIR = path.resolve(__dirname, '../../../scripts');
+const REPO_ROOT = path.resolve(__dirname, '../../..');
+const SCRIPTS_DIR = path.join(REPO_ROOT, 'scripts');
 const SYNC_SCRIPT = path.join(SCRIPTS_DIR, 'sync_from_membertools.py');
-const TOKENS_FILE = path.resolve(__dirname, '../../../.oauth_tokens.json');
+const TOKENS_FILE = path.join(REPO_ROOT, '.oauth_tokens.json');
+const VENV_PYTHON = path.join(REPO_ROOT, '.venv', 'bin', 'python3');
+const PYTHON_CMD = process.env.PYTHON_CMD || (require('fs').existsSync(VENV_PYTHON) ? VENV_PYTHON : 'python3');
 
 // Load last sync info from file on startup
 const SYNC_STATE_FILE = path.resolve(__dirname, '../../../.sync_state.json');
@@ -64,7 +67,8 @@ async function runSync(): Promise<{ success: boolean; output: string }> {
       return;
     }
 
-    const pythonProcess = spawn('python3', [SYNC_SCRIPT], {
+    console.log(`Using Python: ${PYTHON_CMD}`);
+    const pythonProcess = spawn(PYTHON_CMD, [SYNC_SCRIPT], {
       cwd: SCRIPTS_DIR,
       env: {
         ...process.env,
