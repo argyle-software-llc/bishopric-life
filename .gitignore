@@ -4,6 +4,7 @@
 lcr.credentials.json
 .lcr_cookies.json
 .lcr_tokens.json
+.oauth_tokens.json
 
 # AWS SSH keys - NEVER commit these
 *.pem
