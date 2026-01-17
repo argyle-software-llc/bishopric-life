@@ -449,6 +449,16 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
                 position_name = position.get('name', 'Unknown Position')
                 position_type = position.get('type', '')
                 unit_name = position.get('unitName', '')
+                active_date = position.get('activeDate')
+                set_apart = position.get('setApart', False)
+
+                # Parse active date
+                sustained_date = None
+                if active_date:
+                    try:
+                        sustained_date = datetime.strptime(str(active_date), '%Y-%m-%d').date()
+                    except:
+                        pass
 
                 # Determine organization name from position type or unit name
                 # Try to match to an existing org or create one
@@ -476,22 +486,33 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
                     cur.execute(
                         """
                         UPDATE calling_assignments
-                        SET is_active = true
+                        SET is_active = true,
+                            assigned_date = COALESCE(%s, assigned_date),
+                            sustained_date = COALESCE(%s, sustained_date),
+                            set_apart_date = CASE WHEN %s THEN COALESCE(set_apart_date, %s) ELSE set_apart_date END
                         WHERE id = %s
                         """,
-                        (existing[0],),
+                        (
+                            sustained_date,
+                            sustained_date,
+                            set_apart,
+                            sustained_date,
+                            existing[0],
+                        ),
                     )
                 else:
                     cur.execute(
                         """
                         INSERT INTO calling_assignments (
-                            calling_id, member_id, is_active, assigned_date
-                        ) VALUES (%s, %s, true, %s)
+                            calling_id, member_id, is_active, assigned_date, sustained_date, set_apart_date
+                        ) VALUES (%s, %s, true, %s, %s, %s)
                         """,
                         (
                             calling_id,
                             member_db_id,
-                            datetime.today().date(),
+                            sustained_date or datetime.today().date(),
+                            sustained_date,
+                            sustained_date if set_apart else None,
                         ),
                     )
                 callings_processed += 1
