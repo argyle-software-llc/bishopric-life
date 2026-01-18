@@ -25,6 +25,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - ./.oauth_tokens.json:/app/.oauth_tokens.json
+      - ./.sync_state.json:/app/.sync_state.json
     environment:
       PORT: 3003
       POSTGRES_HOST: db

@@ -93,15 +93,18 @@ let lastSyncStatus: 'success' | 'failed' | null = null;
 let lastSyncOutput: string = '';
 
 // Path to sync script and tokens
-const REPO_ROOT = path.resolve(__dirname, '../../..');
-const SCRIPTS_DIR = path.join(REPO_ROOT, 'scripts');
+// In Docker, scripts are mounted at /app/scripts, tokens at /app/.oauth_tokens.json
+// In development, use relative paths from repo root
+const IS_DOCKER = fs.existsSync('/app/scripts');
+const APP_ROOT = IS_DOCKER ? '/app' : path.resolve(__dirname, '../../..');
+const SCRIPTS_DIR = path.join(APP_ROOT, 'scripts');
 const SYNC_SCRIPT = path.join(SCRIPTS_DIR, 'sync_from_membertools.py');
-const TOKENS_FILE = path.join(REPO_ROOT, '.oauth_tokens.json');
-const VENV_PYTHON = path.join(REPO_ROOT, '.venv', 'bin', 'python3');
-const PYTHON_CMD = process.env.PYTHON_CMD || (require('fs').existsSync(VENV_PYTHON) ? VENV_PYTHON : 'python3');
+const TOKENS_FILE = path.join(APP_ROOT, '.oauth_tokens.json');
+const VENV_PYTHON = path.join(APP_ROOT, '.venv', 'bin', 'python3');
+const PYTHON_CMD = process.env.PYTHON_CMD || (fs.existsSync(VENV_PYTHON) ? VENV_PYTHON : 'python3');
 
 // Load last sync info from file on startup
-const SYNC_STATE_FILE = path.resolve(__dirname, '../../../.sync_state.json');
+const SYNC_STATE_FILE = path.join(APP_ROOT, '.sync_state.json');
 try {
   if (fs.existsSync(SYNC_STATE_FILE)) {
     const state = JSON.parse(fs.readFileSync(SYNC_STATE_FILE, 'utf-8'));
@@ -149,11 +152,13 @@ async function runSync(): Promise<{ success: boolean; output: string }> {
     }
 
     // Build DATABASE_URL with URL-encoded password (handles special chars like /)
+    // In Docker: use POSTGRES_HOST (typically 'db') for Docker network
+    // On host: use localhost with exposed port
     let databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl && process.env.POSTGRES_HOST) {
+    if (!databaseUrl && process.env.POSTGRES_PASSWORD) {
       const user = process.env.POSTGRES_USER || 'postgres';
       const password = encodeURIComponent(process.env.POSTGRES_PASSWORD || '');
-      const host = process.env.POSTGRES_HOST;
+      const host = process.env.POSTGRES_HOST || 'localhost';
       const port = process.env.POSTGRES_PORT || '5432';
       const db = process.env.POSTGRES_DB || 'ward_callings';
       databaseUrl = `postgresql://${user}:${password}@${host}:${port}/${db}`;
