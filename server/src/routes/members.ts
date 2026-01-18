@@ -62,17 +62,39 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Get members without callings
+// Get members tagged as needing callings (with their current callings if any)
 router.get('/needs/callings', async (req, res) => {
   try {
+    // Get members who have been tagged as needing callings
     const result = await pool.query(
       `SELECT m.*, mcn.status, mcn.potential_callings, mcn.notes
        FROM members m
-       LEFT JOIN member_calling_needs mcn ON m.id = mcn.member_id
+       INNER JOIN member_calling_needs mcn ON m.id = mcn.member_id
        WHERE m.is_active = true
        ORDER BY mcn.status, m.last_name, m.first_name`
     );
-    res.json(result.rows);
+
+    // Get callings for each member
+    const membersWithCallings = await Promise.all(
+      result.rows.map(async (member) => {
+        const callingsResult = await pool.query(
+          `SELECT c.id, c.title, o.name as organization_name,
+                  ca.assigned_date, ca.sustained_date
+           FROM calling_assignments ca
+           JOIN callings c ON ca.calling_id = c.id
+           LEFT JOIN organizations o ON c.organization_id = o.id
+           WHERE ca.member_id = $1 AND ca.is_active = true
+           ORDER BY ca.assigned_date DESC`,
+          [member.id]
+        );
+        return {
+          ...member,
+          callings: callingsResult.rows,
+        };
+      })
+    );
+
+    res.json(membersWithCallings);
   } catch (error) {
     console.error('Error fetching members needing callings:', error);
     res.status(500).json({ error: 'Failed to fetch members needing callings' });

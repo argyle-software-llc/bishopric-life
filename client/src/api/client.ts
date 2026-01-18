@@ -193,3 +193,58 @@ export const triggerSync = () =>
 
 export const getSyncOutput = () =>
   api.get<SyncOutput>('/sync/output').then((res) => res.data);
+
+// Auth Setup
+export interface AuthStartResponse {
+  success: boolean;
+  authorizeUrl: string;
+  state: string;
+}
+
+export interface AuthCompleteResponse {
+  success: boolean;
+  message: string;
+}
+
+export const startAuthSetup = () =>
+  api.post<AuthStartResponse>('/sync/auth/start').then((res) => res.data);
+
+export const completeAuthSetup = (redirectUrl: string) =>
+  api.post<AuthCompleteResponse>('/sync/auth/complete', { redirectUrl }).then((res) => res.data);
+
+// Youth Interviews
+export interface YouthInterview {
+  id: string;
+  interview_type: 'BYI' | 'BCYI';
+  api_interview_type: string;
+  is_due: boolean;
+  last_interview_date: string | null;
+  notes: string | null;
+  member_id: string;
+  first_name: string;
+  last_name: string;
+  photo_url: string | null;
+  age: number | null;
+  gender: string | null;
+  phone: string | null;
+  email: string | null;
+  household_name: string | null;
+}
+
+export interface InterviewSummary {
+  BYI: number;
+  BCYI: number;
+  total: number;
+}
+
+export const getYouthInterviews = (type?: 'BYI' | 'BCYI') =>
+  api.get<YouthInterview[]>('/interviews/youth', { params: { type } }).then((res) => res.data);
+
+export const getInterviewSummary = () =>
+  api.get<InterviewSummary>('/interviews/youth/summary').then((res) => res.data);
+
+export const updateInterview = (id: string, data: { notes?: string; is_due?: boolean; last_interview_date?: string }) =>
+  api.put<YouthInterview>(`/interviews/youth/${id}`, data).then((res) => res.data);
+
+export const completeInterview = (id: string, interview_date?: string) =>
+  api.post<YouthInterview>(`/interviews/youth/${id}/complete`, { interview_date }).then((res) => res.data);

@@ -8,6 +8,7 @@ import MembersDirectory from './pages/MembersDirectory';
 import MembersNeedingCallings from './pages/MembersNeedingCallings';
 import Tasks from './pages/Tasks';
 import UpcomingReleases from './pages/UpcomingReleases';
+import YouthInterviews from './pages/YouthInterviews';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
 
@@ -30,6 +31,7 @@ function App() {
         <Route path="members-needing-callings" element={<MembersNeedingCallings />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="upcoming-releases" element={<UpcomingReleases />} />
+        <Route path="youth-interviews" element={<YouthInterviews />} />
         <Route path="admin" element={<Admin />} />
       </Route>
     </Routes>

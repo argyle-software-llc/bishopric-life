@@ -36,6 +36,7 @@ export default function Layout() {
     { path: '/calling-changes', label: 'Calling Changes' },
     { path: '/upcoming-releases', label: 'Upcoming Releases' },
     { path: '/members-needing-callings', label: 'Needs Calling' },
+    { path: '/youth-interviews', label: 'Youth Interviews' },
     { path: '/prayer-list', label: 'Prayer List' },
     { path: '/members', label: 'Members' },
     { path: '/tasks', label: 'Tasks' },

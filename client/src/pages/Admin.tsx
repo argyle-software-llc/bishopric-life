@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUsers, addUser, deleteUser, toggleUserAllowed, User, getSyncStatus, triggerSync, getSyncOutput, SyncStatus } from '../api/client';
+import { getUsers, addUser, deleteUser, toggleUserAllowed, User, getSyncStatus, triggerSync, getSyncOutput, startAuthSetup, completeAuthSetup } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Admin() {
@@ -8,6 +8,11 @@ export default function Admin() {
   const [error, setError] = useState<string | null>(null);
   const [syncOutput, setSyncOutput] = useState<string>('');
   const [showSyncOutput, setShowSyncOutput] = useState(false);
+  const [showAuthSetup, setShowAuthSetup] = useState(false);
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
+  const [redirectUrlInput, setRedirectUrlInput] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authSuccess, setAuthSuccess] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
 
@@ -69,6 +74,41 @@ export default function Admin() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   });
 
+  const startAuthMutation = useMutation({
+    mutationFn: startAuthSetup,
+    onSuccess: (data) => {
+      setAuthUrl(data.authorizeUrl);
+      setAuthError(null);
+      setAuthSuccess(null);
+    },
+    onError: () => setAuthError('Failed to start authentication setup'),
+  });
+
+  const completeAuthMutation = useMutation({
+    mutationFn: completeAuthSetup,
+    onSuccess: (data) => {
+      setAuthSuccess(data.message);
+      setAuthError(null);
+      setAuthUrl(null);
+      setRedirectUrlInput('');
+      refetchSyncStatus();
+    },
+    onError: (err: any) => {
+      setAuthError(err.response?.data?.message || 'Failed to complete authentication');
+    },
+  });
+
+  const handleStartAuth = () => {
+    setShowAuthSetup(true);
+    startAuthMutation.mutate();
+  };
+
+  const handleCompleteAuth = () => {
+    if (redirectUrlInput.trim()) {
+      completeAuthMutation.mutate(redirectUrlInput.trim());
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newEmail.trim()) {
@@ -120,10 +160,26 @@ export default function Admin() {
                   </span>
                 )}
               </p>
-              {!syncStatus?.tokensConfigured && (
-                <p className="text-sm text-amber-600 mt-1">
-                  OAuth tokens not configured. Please set up authentication.
-                </p>
+              {!syncStatus?.tokensConfigured && !showAuthSetup && (
+                <div className="mt-1">
+                  <p className="text-sm text-amber-600">
+                    OAuth tokens not configured.{' '}
+                    <button
+                      onClick={handleStartAuth}
+                      className="text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Set up authentication
+                    </button>
+                  </p>
+                </div>
+              )}
+              {syncStatus?.tokensConfigured && !showAuthSetup && (
+                <button
+                  onClick={handleStartAuth}
+                  className="text-xs text-gray-500 hover:text-gray-700 mt-1"
+                >
+                  Re-authenticate
+                </button>
               )}
             </div>
             <button
@@ -144,6 +200,109 @@ export default function Admin() {
               )}
             </button>
           </div>
+
+          {/* Authentication Setup Flow */}
+          {showAuthSetup && (
+            <div className="mt-4 border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-gray-700">Authentication Setup</h3>
+                <button
+                  onClick={() => {
+                    setShowAuthSetup(false);
+                    setAuthUrl(null);
+                    setRedirectUrlInput('');
+                    setAuthError(null);
+                    setAuthSuccess(null);
+                  }}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {authSuccess && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
+                  {authSuccess}
+                </div>
+              )}
+
+              {authError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+                  {authError}
+                </div>
+              )}
+
+              {!authSuccess && (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-md text-sm">
+                    <p className="font-medium mb-2">Step 1: Open the Church login page</p>
+                    {authUrl ? (
+                      <div>
+                        <p className="text-gray-600 mb-2">Click the link below to log in with your Church account:</p>
+                        <a
+                          href={authUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 underline break-all block mb-2"
+                        >
+                          Open Church Login
+                        </a>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(authUrl)}
+                          className="text-xs text-gray-500 hover:text-gray-700"
+                        >
+                          Copy URL to clipboard
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startAuthMutation.mutate()}
+                        disabled={startAuthMutation.isPending}
+                        className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {startAuthMutation.isPending ? 'Generating...' : 'Generate Login URL'}
+                      </button>
+                    )}
+                  </div>
+
+                  {authUrl && (
+                    <>
+                      <div className="bg-gray-50 p-4 rounded-md text-sm">
+                        <p className="font-medium mb-2">Step 2: Log in with your Church account</p>
+                        <p className="text-gray-600">Complete the login process including any multi-factor authentication.</p>
+                      </div>
+
+                      <div className="bg-gray-50 p-4 rounded-md text-sm">
+                        <p className="font-medium mb-2">Step 3: Copy the redirect URL</p>
+                        <p className="text-gray-600 mb-2">
+                          After login, your browser will try to open a URL starting with <code className="bg-gray-200 px-1 rounded">membertoolsauth://login?code=...</code>
+                        </p>
+                        <p className="text-gray-600 mb-3">
+                          The page won't load - that's expected! Copy the <strong>entire URL</strong> from your browser's address bar and paste it below.
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={redirectUrlInput}
+                            onChange={(e) => setRedirectUrlInput(e.target.value)}
+                            placeholder="Paste the redirect URL here..."
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                          <button
+                            onClick={handleCompleteAuth}
+                            disabled={!redirectUrlInput.trim() || completeAuthMutation.isPending}
+                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                          >
+                            {completeAuthMutation.isPending ? 'Verifying...' : 'Complete Setup'}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {showSyncOutput && (
             <div className="mt-4">

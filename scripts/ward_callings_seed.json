@@ -1,0 +1,110 @@
+{
+  "organizations": [
+    {
+      "name": "Bishopric",
+      "display_order": 1,
+      "callings": [
+        "Bishop",
+        "Bishopric First Counselor",
+        "Bishopric Second Counselor",
+        "Ward Executive Secretary",
+        "Ward Clerk",
+        "Assistant Ward Clerk"
+      ]
+    },
+    {
+      "name": "Elders Quorum",
+      "display_order": 2,
+      "callings": [
+        "Elders Quorum President",
+        "Elders Quorum First Counselor",
+        "Elders Quorum Second Counselor",
+        "Elders Quorum Secretary",
+        "Elders Quorum Instructor"
+      ]
+    },
+    {
+      "name": "Relief Society",
+      "display_order": 3,
+      "callings": [
+        "Relief Society President",
+        "Relief Society First Counselor",
+        "Relief Society Second Counselor",
+        "Relief Society Secretary",
+        "Relief Society Instructor",
+        "Relief Society Meeting Coordinator"
+      ]
+    },
+    {
+      "name": "Young Men",
+      "display_order": 4,
+      "callings": [
+        "Young Men President",
+        "Young Men First Counselor",
+        "Young Men Second Counselor",
+        "Young Men Secretary",
+        "Priests Quorum Advisor",
+        "Teachers Quorum Advisor",
+        "Deacons Quorum Advisor"
+      ]
+    },
+    {
+      "name": "Young Women",
+      "display_order": 5,
+      "callings": [
+        "Young Women President",
+        "Young Women First Counselor",
+        "Young Women Second Counselor",
+        "Young Women Secretary",
+        "Young Women Class Advisor"
+      ]
+    },
+    {
+      "name": "Primary",
+      "display_order": 6,
+      "callings": [
+        "Primary President",
+        "Primary First Counselor",
+        "Primary Second Counselor",
+        "Primary Secretary",
+        "Primary Music Leader",
+        "Primary Pianist",
+        "Primary Teacher",
+        "Nursery Leader"
+      ]
+    },
+    {
+      "name": "Sunday School",
+      "display_order": 7,
+      "callings": [
+        "Sunday School President",
+        "Sunday School First Counselor",
+        "Sunday School Second Counselor",
+        "Sunday School Secretary",
+        "Gospel Doctrine Teacher",
+        "Gospel Principles Teacher",
+        "Youth Sunday School Teacher"
+      ]
+    },
+    {
+      "name": "Music",
+      "display_order": 8,
+      "callings": [
+        "Ward Music Chairman",
+        "Ward Choir Director",
+        "Ward Choir Accompanist",
+        "Ward Organist"
+      ]
+    },
+    {
+      "name": "Other",
+      "display_order": 12,
+      "callings": [
+        "Ward Temple and Family History Consultant",
+        "Ward Temple and Family History Leader",
+        "Ward Mission Leader",
+        "Ward Missionary"
+      ]
+    }
+  ]
+}

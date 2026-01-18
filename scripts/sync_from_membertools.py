@@ -391,6 +391,36 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
         'PRIMARY': 'Primary',
         'SUNDAY_SCHOOL': 'Sunday School',
         'HIGH_PRIEST': 'High Priests',
+        'MUSIC': 'Music',
+    }
+
+    # Position name patterns to organization mapping (for fallback when type doesn't match)
+    POSITION_NAME_TO_ORG = {
+        # Bishopric
+        'Bishop': 'Bishopric',
+        'Ward Clerk': 'Bishopric',
+        'Ward Executive Secretary': 'Bishopric',
+        'Assistant Ward Clerk': 'Bishopric',
+        'Assistant Clerk': 'Bishopric',
+        # Young Men (Aaronic Priesthood)
+        'Deacons Quorum': 'Young Men',
+        'Teachers Quorum': 'Young Men',
+        'Priests Quorum': 'Young Men',
+        'Aaronic Priesthood': 'Young Men',
+        # Primary
+        'Nursery': 'Primary',
+        # Music
+        'Music': 'Music',
+        'Choir': 'Music',
+        'Organist': 'Music',
+        'Pianist': 'Music',
+        'Accompanist': 'Music',
+        # Other
+        'Ward Mission': 'Other',
+        'Ward Missionary': 'Other',
+        'Temple and Family History': 'Other',
+        'Activities Committee': 'Other',
+        'Building Representative': 'Other',
     }
 
     def get_or_create_org(name: str, parent_id: Optional[str] = None) -> str:
@@ -460,17 +490,25 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
                     except:
                         pass
 
-                # Determine organization name from position type or unit name
-                # Try to match to an existing org or create one
+                # Determine organization name from position type, position name, or unit name
                 org_name = None
+
+                # First try to match position type to org
                 for org_type, display_name in ORG_TYPE_NAMES.items():
                     if org_type in position_type.upper():
                         org_name = display_name
                         break
 
+                # If no match, try to match position name patterns
                 if not org_name:
-                    # Use unit name or fall back to "Ward"
-                    org_name = unit_name if unit_name else 'Ward'
+                    for pattern, target_org in POSITION_NAME_TO_ORG.items():
+                        if pattern.lower() in position_name.lower():
+                            org_name = target_org
+                            break
+
+                # Final fallback: use unit name or "Other"
+                if not org_name:
+                    org_name = 'Other'
 
                 org_id = get_or_create_org(org_name)
                 calling_id = get_or_create_calling(org_id, position_name)
@@ -521,14 +559,88 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
     cur.close()
     print(f"Synced {len(organizations)} organizations, {callings_processed} calling assignments")
 
+    # Ensure all standard ward callings exist (including vacant ones)
+    sync_standard_callings(conn)
 
-def print_youth_interviews_summary(data: Dict, member_uuid_map: Dict[str, str]):
-    """Print summary of youth interviews (for now, until we add DB tables)."""
+
+def sync_standard_callings(conn):
+    """Ensure all standard ward callings exist in the database.
+
+    This creates callings from a seed file to ensure vacant positions
+    are tracked even if no one currently holds them.
+
+    Args:
+        conn: Database connection
+    """
+    cur = conn.cursor()
+
+    # Load seed file
+    seed_file = Path(__file__).parent / 'ward_callings_seed.json'
+    if not seed_file.exists():
+        print("Warning: ward_callings_seed.json not found, skipping standard callings sync")
+        return
+
+    with open(seed_file, 'r') as f:
+        seed_data = json.load(f)
+
+    def get_or_create_org(name: str, display_order: int = 50) -> str:
+        cur.execute(
+            """SELECT id FROM organizations WHERE name = %s LIMIT 1""",
+            (name,),
+        )
+        row = cur.fetchone()
+        if row:
+            # Update display_order if it exists
+            cur.execute(
+                """UPDATE organizations SET display_order = %s WHERE id = %s""",
+                (display_order, row[0]),
+            )
+            return row[0]
+        cur.execute(
+            """INSERT INTO organizations (name, display_order) VALUES (%s, %s) RETURNING id""",
+            (name, display_order),
+        )
+        return cur.fetchone()[0]
+
+    def get_or_create_calling(org_id: str, title: str) -> str:
+        cur.execute(
+            """SELECT id FROM callings WHERE organization_id = %s AND title = %s LIMIT 1""",
+            (org_id, title),
+        )
+        row = cur.fetchone()
+        if row:
+            return row[0]
+        cur.execute(
+            """INSERT INTO callings (organization_id, title, requires_setting_apart) VALUES (%s, %s, true) RETURNING id""",
+            (org_id, title),
+        )
+        return cur.fetchone()[0]
+
+    callings_created = 0
+    for org_data in seed_data.get('organizations', []):
+        org_name = org_data.get('name')
+        if not org_name:
+            continue
+
+        display_order = org_data.get('display_order', 50)
+        org_id = get_or_create_org(org_name, display_order)
+
+        for calling_title in org_data.get('callings', []):
+            calling_id = get_or_create_calling(org_id, calling_title)
+            callings_created += 1
+
+    conn.commit()
+    cur.close()
+    print(f"Ensured {callings_created} standard callings exist")
+
+
+def sync_youth_interviews(data: Dict, conn, member_uuid_map: Dict[str, str]):
+    """Sync youth interview data to the database."""
     interviews = data.get('actionInterviews', [])
+    cur = conn.cursor()
 
-    print("\n" + "=" * 60)
-    print("YOUTH INTERVIEWS SUMMARY")
-    print("=" * 60)
+    # Clear existing interview records (we'll re-sync fresh each time)
+    cur.execute("DELETE FROM youth_interviews")
 
     byi_count = 0
     bcyi_count = 0
@@ -537,21 +649,47 @@ def print_youth_interviews_summary(data: Dict, member_uuid_map: Dict[str, str]):
         itype = interview.get('type', '')
         members = interview.get('members', [])
 
+        # Determine interview type
         if 'BISHOP_YOUTH_INTERVIEW' in itype:
-            byi_count += len(members)
+            interview_type = 'BYI'
         elif 'COUNSELOR_YOUTH_INTERVIEW' in itype:
-            bcyi_count += len(members)
+            interview_type = 'BCYI'
+        else:
+            # Skip non-youth interviews
+            continue
 
-    print(f"Bishop Youth Interviews (BYI): {byi_count} youth")
-    print(f"Bishopric Counselor Youth Interviews (BCYI): {bcyi_count} youth")
+        for member_data in members:
+            member_uuid = member_data.get('uuid')
+            if not member_uuid or member_uuid not in member_uuid_map:
+                continue
 
-    # Detailed breakdown
-    print("\nDetailed breakdown:")
-    for interview in interviews:
-        itype = interview.get('type', '')
-        members = interview.get('members', [])
-        if members:
-            print(f"  {itype}: {len(members)}")
+            member_db_id = member_uuid_map[member_uuid]
+
+            try:
+                cur.execute(
+                    """
+                    INSERT INTO youth_interviews (member_id, interview_type, api_interview_type, is_due)
+                    VALUES (%s, %s, %s, true)
+                    ON CONFLICT (member_id, interview_type) DO UPDATE
+                    SET api_interview_type = EXCLUDED.api_interview_type,
+                        is_due = true,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    (member_db_id, interview_type, itype)
+                )
+                if interview_type == 'BYI':
+                    byi_count += 1
+                else:
+                    bcyi_count += 1
+            except Exception as e:
+                print(f"  Warning: Could not insert interview for member {member_uuid}: {e}")
+
+    conn.commit()
+    cur.close()
+
+    print(f"\nYouth Interviews synced:")
+    print(f"  Bishop Youth Interviews (BYI): {byi_count} youth")
+    print(f"  Bishopric Counselor Youth Interviews (BCYI): {bcyi_count} youth")
 
 
 def print_temple_recommend_summary(data: Dict, member_uuid_map: Dict[str, str]):
@@ -630,7 +768,12 @@ def main():
 
         if DRY_RUN:
             print("\nDRY_RUN=1: Skipping database writes")
-            print_youth_interviews_summary(data, {})
+            # Just print summaries in dry run mode
+            interviews = data.get('actionInterviews', [])
+            byi = sum(len(i.get('members', [])) for i in interviews if 'BISHOP_YOUTH_INTERVIEW' in i.get('type', ''))
+            bcyi = sum(len(i.get('members', [])) for i in interviews if 'COUNSELOR_YOUTH_INTERVIEW' in i.get('type', ''))
+            print(f"\nYouth Interviews (dry run):")
+            print(f"  BYI: {byi}, BCYI: {bcyi}")
             print_temple_recommend_summary(data, {})
         else:
             # Connect to database
@@ -644,8 +787,10 @@ def main():
             # Sync organizations and callings (filtered to home unit)
             sync_organizations_and_callings(data, conn, member_uuid_map, home_unit)
 
-            # Print summaries for new data types (until we add DB tables)
-            print_youth_interviews_summary(data, member_uuid_map)
+            # Sync youth interviews
+            sync_youth_interviews(data, conn, member_uuid_map)
+
+            # Print temple recommend summary (until we add DB tables)
             print_temple_recommend_summary(data, member_uuid_map)
 
             conn.close()
