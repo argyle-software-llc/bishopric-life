@@ -192,6 +192,127 @@ class OAuthClient:
 
 
 # =============================================================================
+# Hard Refresh Functions
+# =============================================================================
+
+def hard_refresh_synced_tables(conn):
+    """
+    Clear synced tables before re-inserting fresh data.
+
+    Tables cleared (in order to respect foreign keys):
+    - calling_assignments (leaf)
+    - youth_interviews (leaf)
+    - callings (depends on orgs)
+    - organizations (root)
+
+    Members and households are NOT cleared because they use stable LCR UUIDs
+    and app data references them by church_id natural key.
+    """
+    cur = conn.cursor()
+
+    print("\nClearing synced tables for fresh data...")
+
+    # Clear in order of dependencies
+    cur.execute("DELETE FROM calling_assignments")
+    print(f"  - Cleared calling_assignments")
+
+    cur.execute("DELETE FROM youth_interviews")
+    print(f"  - Cleared youth_interviews")
+
+    cur.execute("DELETE FROM callings")
+    print(f"  - Cleared callings")
+
+    cur.execute("DELETE FROM organizations")
+    print(f"  - Cleared organizations")
+
+    conn.commit()
+    cur.close()
+    print("  Done.")
+
+
+def relink_cached_ids(conn):
+    """
+    Re-link cached UUID references in app tables after sync.
+
+    App tables store natural keys (org_name, calling_title, church_id) which
+    are stable across syncs. This function updates the cached UUID references
+    to point to the newly synced records.
+    """
+    cur = conn.cursor()
+
+    print("\nRe-linking cached IDs in app tables...")
+
+    # Re-link calling_changes.calling_id
+    cur.execute("""
+        UPDATE calling_changes cc SET calling_id = c.id
+        FROM callings c
+        JOIN organizations o ON c.organization_id = o.id
+        WHERE o.name = cc.calling_org_name
+          AND c.title = cc.calling_title
+          AND cc.calling_org_name IS NOT NULL
+    """)
+    print(f"  - Re-linked {cur.rowcount} calling_changes.calling_id")
+
+    # Re-link calling_changes.new_member_id
+    cur.execute("""
+        UPDATE calling_changes cc SET new_member_id = m.id
+        FROM members m
+        WHERE m.church_id = cc.new_member_church_id
+          AND cc.new_member_church_id IS NOT NULL
+    """)
+    print(f"  - Re-linked {cur.rowcount} calling_changes.new_member_id")
+
+    # Re-link calling_changes.current_member_id
+    cur.execute("""
+        UPDATE calling_changes cc SET current_member_id = m.id
+        FROM members m
+        WHERE m.church_id = cc.current_member_church_id
+          AND cc.current_member_church_id IS NOT NULL
+    """)
+    print(f"  - Re-linked {cur.rowcount} calling_changes.current_member_id")
+
+    # Re-link calling_considerations.member_id
+    cur.execute("""
+        UPDATE calling_considerations cc SET member_id = m.id
+        FROM members m
+        WHERE m.church_id = cc.member_church_id
+          AND cc.member_church_id IS NOT NULL
+    """)
+    print(f"  - Re-linked {cur.rowcount} calling_considerations.member_id")
+
+    # Re-link tasks.member_id
+    cur.execute("""
+        UPDATE tasks t SET member_id = m.id
+        FROM members m
+        WHERE m.church_id = t.member_church_id
+          AND t.member_church_id IS NOT NULL
+    """)
+    print(f"  - Re-linked {cur.rowcount} tasks.member_id")
+
+    # Re-link member_calling_needs.member_id
+    cur.execute("""
+        UPDATE member_calling_needs mcn SET member_id = m.id
+        FROM members m
+        WHERE m.church_id = mcn.member_church_id
+          AND mcn.member_church_id IS NOT NULL
+    """)
+    print(f"  - Re-linked {cur.rowcount} member_calling_needs.member_id")
+
+    # Re-link bishopric_stewardships.organization_id
+    cur.execute("""
+        UPDATE bishopric_stewardships bs SET organization_id = o.id
+        FROM organizations o
+        WHERE o.name = bs.organization_name
+          AND bs.organization_name IS NOT NULL
+    """)
+    print(f"  - Re-linked {cur.rowcount} bishopric_stewardships.organization_id")
+
+    conn.commit()
+    cur.close()
+    print("  Done.")
+
+
+# =============================================================================
 # Data Processing
 # =============================================================================
 
@@ -316,14 +437,22 @@ def sync_members_and_households(data: Dict, conn, home_unit: int = None) -> Dict
             # Gender (not directly available, could infer from positions)
             gender = None
 
+            # Get numeric church ID (CMIS ID) - this is the stable identifier
+            church_id = member.get('legacyCmisId') or member.get('id')
+            # Ensure it's numeric if it's a string representation
+            if church_id and isinstance(church_id, str) and church_id.isdigit():
+                church_id = int(church_id)
+            elif church_id and not isinstance(church_id, int):
+                church_id = None  # Skip non-numeric IDs
+
             # Upsert member
             cur.execute(
                 """
                 INSERT INTO members (
                     id, household_id, first_name, last_name,
-                    email, phone, gender, age, is_active
+                    email, phone, gender, age, is_active, church_id
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET
                     household_id = EXCLUDED.household_id,
                     first_name = EXCLUDED.first_name,
@@ -332,7 +461,8 @@ def sync_members_and_households(data: Dict, conn, home_unit: int = None) -> Dict
                     phone = EXCLUDED.phone,
                     gender = COALESCE(EXCLUDED.gender, members.gender),
                     age = COALESCE(EXCLUDED.age, members.age),
-                    is_active = EXCLUDED.is_active
+                    is_active = EXCLUDED.is_active,
+                    church_id = COALESCE(EXCLUDED.church_id, members.church_id)
                 RETURNING id
                 """,
                 (
@@ -345,6 +475,7 @@ def sync_members_and_households(data: Dict, conn, home_unit: int = None) -> Dict
                     gender,
                     age,
                     is_adult,
+                    church_id,
                 ),
             )
 
@@ -782,14 +913,23 @@ def main():
             conn = get_db_connection()
             print("Connected to database")
 
-            # Sync members and households (filtered to home unit)
+            # STEP 1: Sync members and households (upsert - stable UUIDs)
+            # This must come BEFORE hard refresh so member IDs exist for assignments
             member_uuid_map = sync_members_and_households(data, conn, home_unit)
 
-            # Sync organizations and callings (filtered to home unit)
+            # STEP 2: Hard refresh synced tables (orgs, callings, assignments, interviews)
+            # This clears stale data and prevents duplicates
+            hard_refresh_synced_tables(conn)
+
+            # STEP 3: Re-insert fresh orgs, callings, and assignments
             sync_organizations_and_callings(data, conn, member_uuid_map, home_unit)
 
-            # Sync youth interviews
+            # STEP 4: Sync youth interviews (fresh insert after hard refresh)
             sync_youth_interviews(data, conn, member_uuid_map)
+
+            # STEP 5: Re-link cached IDs in app tables
+            # This restores references that were set to NULL during hard refresh
+            relink_cached_ids(conn)
 
             # Print temple recommend summary (until we add DB tables)
             print_temple_recommend_summary(data, member_uuid_map)
