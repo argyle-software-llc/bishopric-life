@@ -171,16 +171,33 @@ Required variables:
 
 The sync script connects to the database and needs proper connection settings.
 
-### From Admin Page
-The Admin page has a "Sync Now" button that triggers the sync via the API. The server automatically constructs the DATABASE_URL with URL-encoded passwords.
+### From Admin Page (Recommended)
+The Admin page has a "Sync Now" button that triggers the sync via the API. The server automatically:
+1. Builds DATABASE_URL with URL-encoded password
+2. Uses Docker network hostname (`db`) for database connection
+3. Passes all required environment variables
 
-### From Command Line (on EC2)
-If you need to run sync manually from the command line:
+### From Command Line (Inside Docker)
+If you need to run sync manually from inside the backend container:
 
 ```bash
 cd ~/callings
 
-# Source the .env file and URL-encode the password (important for special chars like /)
+# Run sync inside the backend container (recommended - has all dependencies)
+sudo docker compose exec backend sh -c 'export DATABASE_URL="postgresql://$POSTGRES_USER:$(python3 -c "import urllib.parse; print(urllib.parse.quote(\"$POSTGRES_PASSWORD\", safe=\"\"))")@db:5432/ward_callings" && python3 /app/scripts/sync_from_membertools.py'
+```
+
+### From Command Line (On EC2 Host)
+If you need to run sync directly on the EC2 host (requires Python and psycopg2 installed):
+
+```bash
+cd ~/callings
+
+# Ensure Python dependencies are installed
+sudo dnf install -y python3-pip python3-psycopg2
+pip3 install requests --user
+
+# Source the .env file and URL-encode the password
 source .env
 ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${POSTGRES_PASSWORD}', safe=''))")
 export DATABASE_URL="postgresql://${POSTGRES_USER}:${ENCODED_PASSWORD}@localhost:5432/ward_callings"
@@ -190,6 +207,12 @@ python3 scripts/sync_from_membertools.py
 ```
 
 **Important**: The database password may contain special characters (like `/`) that must be URL-encoded when used in a connection string. The `encodeURIComponent` function (in Node.js) or `urllib.parse.quote` (in Python) handles this.
+
+### Sync Architecture
+- The backend Docker container includes Python 3 with psycopg2 and requests
+- Scripts directory is mounted as a volume at `/app/scripts`
+- OAuth tokens are mounted at `/app/.oauth_tokens.json`
+- When triggered via API, the backend spawns the Python sync script with proper DATABASE_URL
 
 ## Troubleshooting
 
