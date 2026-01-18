@@ -167,7 +167,34 @@ Required variables:
 - http://localhost:3000 (development)
 - https://bishopric.life (production)
 
+## Running Manual Sync
+
+The sync script connects to the database and needs proper connection settings.
+
+### From Admin Page
+The Admin page has a "Sync Now" button that triggers the sync via the API. The server automatically constructs the DATABASE_URL with URL-encoded passwords.
+
+### From Command Line (on EC2)
+If you need to run sync manually from the command line:
+
+```bash
+cd ~/callings
+
+# Source the .env file and URL-encode the password (important for special chars like /)
+source .env
+ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${POSTGRES_PASSWORD}', safe=''))")
+export DATABASE_URL="postgresql://${POSTGRES_USER}:${ENCODED_PASSWORD}@localhost:5432/ward_callings"
+
+# Run the sync
+python3 scripts/sync_from_membertools.py
+```
+
+**Important**: The database password may contain special characters (like `/`) that must be URL-encoded when used in a connection string. The `encodeURIComponent` function (in Node.js) or `urllib.parse.quote` (in Python) handles this.
+
 ## Troubleshooting
+
+### Sync fails with "invalid integer value" for port
+This usually means the password contains special characters (like `/`) that aren't URL-encoded. Use the command above to properly encode the password.
 
 ### Check if services are running
 ```bash

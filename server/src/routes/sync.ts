@@ -148,13 +148,24 @@ async function runSync(): Promise<{ success: boolean; output: string }> {
       return;
     }
 
+    // Build DATABASE_URL with URL-encoded password (handles special chars like /)
+    let databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl && process.env.POSTGRES_HOST) {
+      const user = process.env.POSTGRES_USER || 'postgres';
+      const password = encodeURIComponent(process.env.POSTGRES_PASSWORD || '');
+      const host = process.env.POSTGRES_HOST;
+      const port = process.env.POSTGRES_PORT || '5432';
+      const db = process.env.POSTGRES_DB || 'ward_callings';
+      databaseUrl = `postgresql://${user}:${password}@${host}:${port}/${db}`;
+    }
+
     console.log(`Using Python: ${PYTHON_CMD}`);
     const pythonProcess = spawn(PYTHON_CMD, [SYNC_SCRIPT], {
       cwd: SCRIPTS_DIR,
       env: {
         ...process.env,
         OAUTH_TOKENS_FILE: TOKENS_FILE,
-        DATABASE_URL: process.env.DATABASE_URL,
+        DATABASE_URL: databaseUrl,
       },
     });
 
