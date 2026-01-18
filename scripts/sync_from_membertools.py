@@ -424,9 +424,10 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
     }
 
     def get_or_create_org(name: str, parent_id: Optional[str] = None) -> str:
+        # Check by name only to avoid duplicates (org names should be unique)
         cur.execute(
-            """SELECT id FROM organizations WHERE name = %s AND COALESCE(parent_org_id::text,'') = COALESCE(%s,'') LIMIT 1""",
-            (name, str(parent_id) if parent_id else None),
+            """SELECT id FROM organizations WHERE name = %s LIMIT 1""",
+            (name,),
         )
         row = cur.fetchone()
         if row:
