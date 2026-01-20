@@ -1183,14 +1183,16 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
                 if not isinstance(position, dict):
                     continue
 
-                # Filter positions to home unit if specified
-                position_unit = position.get('unitNumber')
-                if home_unit and position_unit and position_unit != home_unit:
-                    continue
-
                 position_name = position.get('name', 'Unknown Position')
                 position_type = position.get('type', '')
                 unit_name = position.get('unitName', '')
+
+                # Filter positions to home unit OR stake positions
+                # Ward members may have stake callings which we want to track
+                position_unit = position.get('unitNumber')
+                is_stake_position = 'stake' in unit_name.lower() if unit_name else False
+                if home_unit and position_unit and position_unit != home_unit and not is_stake_position:
+                    continue
                 active_date = position.get('activeDate')
                 set_apart = position.get('setApart', False)
 
