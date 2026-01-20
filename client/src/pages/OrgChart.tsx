@@ -5,7 +5,7 @@ import { getCallings, getOrganizations, createCallingChange } from '../api/clien
 import { isRestrictedCalling, getTimeInCalling } from '../utils/callingUtils';
 import MemberSelectionPane from '../components/MemberSelectionPane';
 import SetReleaseExpectationModal from '../components/SetReleaseExpectationModal';
-import type { Calling, Member } from '../types';
+import type { Calling, Member, Organization } from '../types';
 
 export default function OrgChart() {
   const [selectedCalling, setSelectedCalling] = useState<Calling | null>(null);
@@ -85,10 +85,10 @@ export default function OrgChart() {
   });
 
   // Helper to check if org or its children have callings
-  const orgHasCallings = (org: typeof organizations[0]): boolean => {
-    if (callingsByOrg?.[org.id]?.length > 0) return true;
+  const orgHasCallings = (org: Organization): boolean => {
+    if ((callingsByOrg?.[org.id]?.length ?? 0) > 0) return true;
     const children = childOrgsByParent[org.id] || [];
-    return children.some(child => callingsByOrg?.[child.id]?.length > 0);
+    return children.some((child: Organization) => (callingsByOrg?.[child.id]?.length ?? 0) > 0);
   };
 
   const handleCallingClick = (calling: Calling) => {
@@ -195,7 +195,7 @@ export default function OrgChart() {
             (a, b) => (a.display_order ?? 50) - (b.display_order ?? 50)
           );
           const parentCallings = callingsByOrg?.[parentOrg.id] || [];
-          const hasChildren = childOrgs.some(child => callingsByOrg?.[child.id]?.length > 0);
+          const hasChildren = childOrgs.some(child => (callingsByOrg?.[child.id]?.length ?? 0) > 0);
 
           // Helper to render callings grid
           const renderCallingsGrid = (orgCallings: typeof callings) => {
