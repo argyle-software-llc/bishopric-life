@@ -49,6 +49,7 @@ export default function Tasks() {
       sustain_new: 'Sustain New Member',
       release_sustained: 'Announce Release',
       set_apart: 'Set Apart',
+      record_set_apart: 'Record Set Apart in LCR',
       record_in_tools: 'Record in Tools',
       notify_organization: notes ? `Notify ${notes}` : 'Notify Organization',
     };
@@ -147,7 +148,7 @@ export default function Tasks() {
     const isActive = sortField === field;
     return (
       <th
-        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+        className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
         onClick={() => handleSort(field)}
       >
         <div className="flex items-center gap-1">
@@ -214,17 +215,17 @@ export default function Tasks() {
       </div>
 
       {/* Tasks List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 table-fixed">
           <thead className="bg-gray-50">
             <tr>
-              <SortableHeader field="task_type">Task Type</SortableHeader>
+              <SortableHeader field="task_type">Task</SortableHeader>
               <SortableHeader field="calling">Calling</SortableHeader>
               <SortableHeader field="member">Member</SortableHeader>
-              <SortableHeader field="assigned_to">Assigned To</SortableHeader>
-              <SortableHeader field="due_date">Due Date</SortableHeader>
+              <SortableHeader field="assigned_to">Assigned</SortableHeader>
+              <SortableHeader field="due_date">Due</SortableHeader>
               <SortableHeader field="status">Status</SortableHeader>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                 Actions
               </th>
             </tr>
@@ -237,18 +238,18 @@ export default function Tasks() {
                   task.status === 'completed' ? 'opacity-60' : ''
                 }`}
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <td className="px-3 py-3 text-sm font-medium text-gray-900">
                   {getTaskTypeLabel(task.task_type, task.notes)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-3 text-sm text-gray-500 max-w-[180px] truncate" title={task.calling_title || ''}>
                   {task.calling_title || '-'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap">
                   {task.first_name && task.last_name
                     ? `${task.first_name} ${task.last_name}`
                     : '-'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-3 text-sm text-gray-500 whitespace-nowrap">
                   {editingTaskId === task.id ? (
                     <select
                       className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -278,17 +279,17 @@ export default function Tasks() {
                       className="text-left hover:text-blue-600 hover:underline"
                     >
                       {task.assigned_to || (
-                        <span className="text-gray-400 italic">Click to assign</span>
+                        <span className="text-gray-400 italic">Assign</span>
                       )}
                     </button>
                   )}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
                   {task.due_date
                     ? new Date(task.due_date).toLocaleDateString()
                     : '-'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-3 whitespace-nowrap">
                   <span
                     className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       task.status === 'completed'
@@ -299,13 +300,13 @@ export default function Tasks() {
                     {task.status}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-3 py-3 whitespace-nowrap text-sm">
                   <button
                     onClick={() => toggleTaskMutation.mutate(task.id)}
                     className="text-blue-600 hover:text-blue-900"
                     disabled={toggleTaskMutation.isPending}
                   >
-                    {task.status === 'pending' ? 'Mark Complete' : 'Mark Pending'}
+                    {task.status === 'pending' ? 'Complete' : 'Pending'}
                   </button>
                 </td>
               </tr>

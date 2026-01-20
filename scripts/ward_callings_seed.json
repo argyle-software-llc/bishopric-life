@@ -22,10 +22,7 @@
     {
       "name": "Relief Society",
       "display_order": 3,
-      "callings": [
-        "Relief Society Instructor",
-        "Relief Society Meeting Coordinator"
-      ]
+      "callings": []
     },
     {
       "name": "Young Men",
@@ -40,21 +37,12 @@
     {
       "name": "Primary",
       "display_order": 6,
-      "callings": [
-        "Primary Music Leader",
-        "Primary Pianist",
-        "Primary Teacher",
-        "Nursery Leader"
-      ]
+      "callings": []
     },
     {
       "name": "Sunday School",
       "display_order": 7,
-      "callings": [
-        "Gospel Doctrine Teacher",
-        "Gospel Principles Teacher",
-        "Youth Sunday School Teacher"
-      ]
+      "callings": []
     },
     {
       "name": "Music",
@@ -69,12 +57,7 @@
     {
       "name": "Other",
       "display_order": 12,
-      "callings": [
-        "Ward Temple and Family History Consultant",
-        "Ward Temple and Family History Leader",
-        "Ward Mission Leader",
-        "Ward Missionary"
-      ]
+      "callings": []
     }
   ]
 }

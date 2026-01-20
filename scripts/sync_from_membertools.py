@@ -69,6 +69,9 @@ def get_calling_display_order(title: str) -> int:
         return 2
     if '2nd counselor' in title_lower:
         return 3
+    # "Leader" positions (like Ward Mission Leader, Temple and Family History Leader)
+    if 'leader' in title_lower and 'adult' not in title_lower:
+        return 5
 
     # Administrative positions (10-19)
     if 'secretary' in title_lower and 'executive' in title_lower:
@@ -279,11 +282,13 @@ def capture_pre_sync_snapshot(conn):
     cur.execute("DELETE FROM pre_sync_calling_snapshot")
 
     # Capture current state of active calling assignments
+    # Include expected_release_date and release_notes to preserve user-entered data
     cur.execute("""
         INSERT INTO pre_sync_calling_snapshot (
             calling_org_name, calling_title, member_church_id,
             member_first_name, member_last_name,
-            sustained_date, set_apart_date, is_active
+            sustained_date, set_apart_date, is_active,
+            expected_release_date, release_notes
         )
         SELECT
             o.name as calling_org_name,
@@ -293,7 +298,9 @@ def capture_pre_sync_snapshot(conn):
             m.last_name,
             ca.sustained_date,
             ca.set_apart_date,
-            ca.is_active
+            ca.is_active,
+            ca.expected_release_date,
+            ca.release_notes
         FROM calling_assignments ca
         JOIN callings c ON ca.calling_id = c.id
         JOIN organizations o ON c.organization_id = o.id
@@ -650,6 +657,42 @@ def relink_cached_ids(conn):
     print("  Done.")
 
 
+def restore_user_entered_data(conn):
+    """
+    Restore user-entered data from the pre-sync snapshot.
+
+    This preserves data that users manually entered, such as:
+    - expected_release_date: When the bishopric expects to release someone
+    - release_notes: Notes about why/when someone will be released
+
+    This data is not provided by MemberTools API, so we must preserve it across syncs.
+    """
+    cur = conn.cursor()
+
+    print("\nRestoring user-entered data from snapshot...")
+
+    # Restore expected_release_date and release_notes from snapshot
+    cur.execute("""
+        UPDATE calling_assignments ca
+        SET expected_release_date = pss.expected_release_date,
+            release_notes = pss.release_notes
+        FROM pre_sync_calling_snapshot pss, members m, callings c, organizations o
+        WHERE m.church_id = pss.member_church_id
+          AND ca.calling_id = c.id
+          AND c.organization_id = o.id
+          AND ca.member_id = m.id
+          AND o.name = pss.calling_org_name
+          AND c.title = pss.calling_title
+          AND (pss.expected_release_date IS NOT NULL OR pss.release_notes IS NOT NULL)
+    """)
+
+    restored_count = cur.rowcount
+    conn.commit()
+    cur.close()
+
+    print(f"  - Restored release data for {restored_count} calling assignments")
+
+
 # =============================================================================
 # Data Processing
 # =============================================================================
@@ -930,6 +973,127 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
         'Building Representative': 'Other',
     }
 
+    def get_org_display_order(name: str) -> int:
+        """Determine display order for an organization based on its name."""
+        name_lower = name.lower()
+
+        # Top-level ward orgs
+        if name == 'Bishopric':
+            return 1
+        if name == 'Elders Quorum':
+            return 2
+        if name == 'Relief Society':
+            return 3
+        if name == 'Young Men':
+            return 4
+        if name == 'Young Women':
+            return 5
+        if name == 'Aaronic Priesthood Quorums':
+            return 6
+        if name == 'Primary':
+            return 7
+        if name == 'Sunday School':
+            return 8
+        if name == 'Music':
+            return 9
+        if name == 'Temple and Family History':
+            return 10
+        if name == 'Ward Missionaries':
+            return 11
+        if name == 'Other' or name == 'Other Callings':
+            return 12
+
+        # Stake orgs at end
+        if name_lower.startswith('stake') or name == 'High Council' or name == 'Patriarch':
+            return 80
+        if name == 'High Priests Quorum':
+            return 81
+
+        # Presidency always first within parent org
+        if 'presidency' in name_lower:
+            return 1
+
+        # Age-based classes (old to young)
+        # Aaronic Priesthood quorums (old to young)
+        if 'priests quorum' in name_lower:
+            return 10
+        if 'teachers quorum' in name_lower:
+            return 11
+        if 'deacons quorum' in name_lower:
+            return 12
+
+        # Young Women classes (old to young)
+        if 'young women 16-18' in name_lower:
+            return 10
+        if 'young women 14-15' in name_lower:
+            return 11
+        if 'young women 12-15' in name_lower:
+            return 12
+        if 'young women 12-13' in name_lower:
+            return 13
+        if 'young women 12-18' in name_lower:
+            return 20
+
+        # Primary - Valiant (oldest)
+        if 'valiant 10' in name_lower:
+            return 10
+        if 'valiant 9' in name_lower:
+            return 14
+        if 'valiant 8' in name_lower:
+            return 16
+        if 'valiant 7' in name_lower:
+            return 18
+
+        # Primary - CTR
+        if 'ctr 6' in name_lower:
+            return 20
+        if 'ctr 5' in name_lower:
+            return 22
+        if 'ctr 4' in name_lower:
+            return 24
+
+        # Primary - Sunbeam/Nursery (youngest)
+        if 'sunbeam' in name_lower:
+            return 30
+        if 'nursery' in name_lower:
+            return 40
+
+        # Sunday School courses (old to young)
+        if 'course 17' in name_lower or 'gospel doctrine' in name_lower:
+            return 10
+        if 'course 16' in name_lower:
+            return 12
+        if 'course 15' in name_lower:
+            return 14
+        if 'course 14' in name_lower:
+            return 16
+        if 'course 13' in name_lower:
+            return 18
+        if 'course 12' in name_lower:
+            return 20
+        if 'course 11' in name_lower:
+            return 22
+        if 'youth sunday school' in name_lower:
+            return 40
+
+        # Activities at the end
+        if 'activities' in name_lower:
+            return 90
+        if 'additional' in name_lower:
+            return 99
+
+        # Other sub-orgs
+        if 'teachers' in name_lower:
+            return 50
+        if 'service' in name_lower:
+            return 51
+        if 'ministering' in name_lower:
+            return 52
+        if 'unassigned' in name_lower or 'resource' in name_lower:
+            return 95
+
+        return 50
+
     def get_or_create_org(name: str, parent_id: Optional[str] = None) -> str:
         # Check by name only to avoid duplicates (org names should be unique)
         cur.execute(
@@ -939,9 +1103,10 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
         row = cur.fetchone()
         if row:
             return row[0]
+        display_order = get_org_display_order(name)
         cur.execute(
-            """INSERT INTO organizations (name, parent_org_id) VALUES (%s, %s) RETURNING id""",
-            (name, parent_id),
+            """INSERT INTO organizations (name, parent_org_id, display_order) VALUES (%s, %s, %s) RETURNING id""",
+            (name, parent_id, display_order),
         )
         return cur.fetchone()[0]
 
@@ -965,6 +1130,10 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
         )
         return cur.fetchone()[0]
 
+    # Organizations that should always be top-level (no parent)
+    # MemberTools sometimes nests these under other orgs incorrectly
+    TOP_LEVEL_ORGS = ['Music', 'Sunday School', 'Other']
+
     # Create organizations from the org structure, including age-group specific orgs
     def create_orgs_recursive(org: Dict, parent_db_id: Optional[str] = None, parent_org_name: Optional[str] = None):
         """Recursively create organizations from the hierarchy."""
@@ -985,7 +1154,12 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
         if parent_org_name and org_name in GENERIC_SUBORG_NAMES:
             effective_org_name = f"{parent_org_name} - {org_name}"
 
-        org_db_id = get_or_create_org(effective_org_name, parent_db_id)
+        # Force certain orgs to be top-level regardless of API hierarchy
+        effective_parent_id = parent_db_id
+        if org_name in TOP_LEVEL_ORGS:
+            effective_parent_id = None
+
+        org_db_id = get_or_create_org(effective_org_name, effective_parent_id)
 
         # Recurse into child orgs
         for child_org in org.get('childOrgs', []):
@@ -1363,7 +1537,11 @@ def main():
             # This restores references that were set to NULL during hard refresh
             relink_cached_ids(conn)
 
-            # STEP 7: Detect in-flight callings
+            # STEP 7: Restore user-entered data from snapshot
+            # This preserves expected_release_date and release_notes across syncs
+            restore_user_entered_data(conn)
+
+            # STEP 8: Detect in-flight callings
             # Compare post-sync state with pre-sync snapshot to find external changes
             detect_in_flight_callings(conn)
 
