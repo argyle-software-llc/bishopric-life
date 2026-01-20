@@ -1,12 +1,22 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
+import { getInFlightCount } from '../api/client';
 
 export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  // Fetch in-flight count for badge
+  const { data: inFlightCount } = useQuery({
+    queryKey: ['in-flight-count'],
+    queryFn: getInFlightCount,
+    refetchInterval: 60000, // Refresh every minute
+    staleTime: 30000, // Consider data stale after 30 seconds
+  });
 
   const handleLogout = async () => {
     await logout();
@@ -33,7 +43,7 @@ export default function Layout() {
 
   const navLinks = [
     { path: '/', label: 'Org Chart' },
-    { path: '/calling-changes', label: 'Calling Changes' },
+    { path: '/calling-changes', label: 'Calling Changes', badge: inFlightCount?.total },
     { path: '/upcoming-releases', label: 'Upcoming Releases' },
     { path: '/members-needing-callings', label: 'Needs Calling' },
     { path: '/youth-interviews', label: 'Youth Interviews' },
@@ -56,8 +66,13 @@ export default function Layout() {
               {/* Desktop nav */}
               <div className="hidden md:flex md:space-x-1 md:ml-6">
                 {navLinks.map((link) => (
-                  <Link key={link.path} to={link.path} className={navLinkClass(link.path)}>
+                  <Link key={link.path} to={link.path} className={`${navLinkClass(link.path)} relative`}>
                     {link.label}
+                    {link.badge !== undefined && link.badge > 0 ? (
+                      <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full h-5 min-w-[1.25rem] flex items-center justify-center px-1">
+                        {link.badge > 99 ? '99+' : link.badge}
+                      </span>
+                    ) : null}
                   </Link>
                 ))}
               </div>
@@ -108,10 +123,15 @@ export default function Layout() {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={mobileNavLinkClass(link.path)}
+                  className={`${mobileNavLinkClass(link.path)} flex items-center justify-between`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  {link.label}
+                  <span>{link.label}</span>
+                  {link.badge !== undefined && link.badge > 0 ? (
+                    <span className="bg-orange-500 text-white text-xs rounded-full h-5 min-w-[1.25rem] flex items-center justify-center px-1">
+                      {link.badge > 99 ? '99+' : link.badge}
+                    </span>
+                  ) : null}
                 </Link>
               ))}
               {user && (

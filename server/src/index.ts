@@ -12,6 +12,7 @@ import authRouter from './routes/auth';
 import usersRouter from './routes/users';
 import syncRouter, { triggerScheduledSync } from './routes/sync';
 import interviewsRouter from './routes/interviews';
+import inFlightRouter from './routes/in-flight';
 import { requireAuth } from './middleware/auth';
 
 dotenv.config();
@@ -44,6 +45,7 @@ app.use('/api/tasks', requireAuth, tasksRouter);
 app.use('/api/users', requireAuth, usersRouter);
 app.use('/api/sync', requireAuth, syncRouter);
 app.use('/api/interviews', requireAuth, interviewsRouter);
+app.use('/api/in-flight', requireAuth, inFlightRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

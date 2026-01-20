@@ -65,6 +65,32 @@ export default function OrgChart() {
     return acc;
   }, {} as Record<string, typeof callings>);
 
+  // Build organization hierarchy
+  const topLevelOrgs = organizations?.filter(org => !org.parent_org_id) || [];
+  const childOrgsByParent = organizations?.reduce((acc, org) => {
+    if (org.parent_org_id) {
+      if (!acc[org.parent_org_id]) {
+        acc[org.parent_org_id] = [];
+      }
+      acc[org.parent_org_id].push(org);
+    }
+    return acc;
+  }, {} as Record<string, typeof organizations>) || {};
+
+  // Sort top-level orgs: Bishopric first, then by display_order
+  const sortedTopLevelOrgs = [...topLevelOrgs].sort((a, b) => {
+    if (a.name === 'Bishopric') return -1;
+    if (b.name === 'Bishopric') return 1;
+    return (a.display_order ?? 50) - (b.display_order ?? 50);
+  });
+
+  // Helper to check if org or its children have callings
+  const orgHasCallings = (org: typeof organizations[0]): boolean => {
+    if (callingsByOrg?.[org.id]?.length > 0) return true;
+    const children = childOrgsByParent[org.id] || [];
+    return children.some(child => callingsByOrg?.[child.id]?.length > 0);
+  };
+
   const handleCallingClick = (calling: Calling) => {
     setSelectedCalling(calling);
   };
@@ -161,16 +187,26 @@ export default function OrgChart() {
       </div>
 
       <div className="space-y-6">
-        {organizations?.map((org) => {
-          const orgCallings = callingsByOrg?.[org.id] || [];
-          if (orgCallings.length === 0) return null;
+        {sortedTopLevelOrgs.map((parentOrg) => {
+          // Skip if this org and its children have no callings
+          if (!orgHasCallings(parentOrg)) return null;
 
-          // Sort callings by display_order
-          const sortedCallings = [...orgCallings].sort((a, b) => a.display_order - b.display_order);
+          const childOrgs = (childOrgsByParent[parentOrg.id] || []).sort(
+            (a, b) => (a.display_order ?? 50) - (b.display_order ?? 50)
+          );
+          const parentCallings = callingsByOrg?.[parentOrg.id] || [];
+          const hasChildren = childOrgs.some(child => callingsByOrg?.[child.id]?.length > 0);
 
-          return (
-            <div key={org.id} className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{org.name}</h3>
+          // Helper to render callings grid
+          const renderCallingsGrid = (orgCallings: typeof callings) => {
+            const sortedCallings = [...(orgCallings || [])].sort((a, b) => {
+              const orderA = a.display_order ?? 50;
+              const orderB = b.display_order ?? 50;
+              if (orderA !== orderB) return orderA - orderB;
+              return (a.title || '').localeCompare(b.title || '');
+            });
+
+            return (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {sortedCallings.map((calling) => (
                   <div
@@ -218,6 +254,36 @@ export default function OrgChart() {
                   </div>
                 ))}
               </div>
+            );
+          };
+
+          return (
+            <div key={parentOrg.id} className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">{parentOrg.name}</h3>
+
+              {/* Parent org's own callings */}
+              {parentCallings.length > 0 && (
+                <div className="mb-6">
+                  {renderCallingsGrid(parentCallings)}
+                </div>
+              )}
+
+              {/* Child organizations */}
+              {hasChildren && (
+                <div className="space-y-6">
+                  {childOrgs.map((childOrg) => {
+                    const childCallings = callingsByOrg?.[childOrg.id] || [];
+                    if (childCallings.length === 0) return null;
+
+                    return (
+                      <div key={childOrg.id} className="border-l-4 border-gray-200 pl-4">
+                        <h4 className="text-lg font-semibold text-gray-700 mb-3">{childOrg.name}</h4>
+                        {renderCallingsGrid(childCallings)}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}

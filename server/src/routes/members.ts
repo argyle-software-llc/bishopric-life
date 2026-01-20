@@ -179,11 +179,12 @@ router.post('/:id/calling-need', async (req, res) => {
     const { id } = req.params;
     const { status, potential_callings, notes } = req.body;
 
-    // Check if member exists
-    const memberCheck = await pool.query('SELECT id FROM members WHERE id = $1', [id]);
+    // Check if member exists and get church_id for natural key
+    const memberCheck = await pool.query('SELECT id, church_id FROM members WHERE id = $1', [id]);
     if (memberCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Member not found' });
     }
+    const memberChurchId = memberCheck.rows[0].church_id;
 
     // Check if calling need already exists
     const existing = await pool.query(
@@ -205,12 +206,12 @@ router.post('/:id/calling-need', async (req, res) => {
         [status, potential_callings, notes, id]
       );
     } else {
-      // Create new record
+      // Create new record with natural key
       result = await pool.query(
-        `INSERT INTO member_calling_needs (member_id, status, potential_callings, notes)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO member_calling_needs (member_id, member_church_id, status, potential_callings, notes)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [id, status || 'active', potential_callings, notes]
+        [id, memberChurchId, status || 'active', potential_callings, notes]
       );
     }
 

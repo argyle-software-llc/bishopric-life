@@ -87,15 +87,29 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const task: Partial<Task> = req.body;
+
+    // Look up church_id for the member if provided
+    let memberChurchId: number | null = null;
+    if (task.member_id) {
+      const memberResult = await pool.query(
+        'SELECT church_id FROM members WHERE id = $1',
+        [task.member_id]
+      );
+      if (memberResult.rows.length > 0) {
+        memberChurchId = memberResult.rows[0].church_id;
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO tasks (
-        calling_change_id, task_type, member_id, assigned_to, status, due_date, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        calling_change_id, task_type, member_id, member_church_id, assigned_to, status, due_date, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
       [
         task.calling_change_id,
         task.task_type,
         task.member_id,
+        memberChurchId,
         task.assigned_to,
         task.status ?? 'pending',
         task.due_date,

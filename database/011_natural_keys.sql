@@ -176,8 +176,23 @@ ALTER TABLE organizations
   ADD CONSTRAINT organizations_name_unique UNIQUE (name);
 
 -- Callings: unique by organization + title
--- First, need to consolidate duplicates (move assignments, then delete)
--- This is complex, so we'll do it in a separate step
+-- Clean up duplicates: keep the one with assignments, delete the rest
+WITH duplicates AS (
+    SELECT c.id, c.organization_id, c.title,
+           COUNT(ca.id) as assignment_count,
+           ROW_NUMBER() OVER (PARTITION BY c.organization_id, c.title ORDER BY COUNT(ca.id) DESC) as rn
+    FROM callings c
+    LEFT JOIN calling_assignments ca ON c.id = ca.calling_id
+    GROUP BY c.id, c.organization_id, c.title
+)
+DELETE FROM callings WHERE id IN (
+    SELECT id FROM duplicates WHERE rn > 1
+);
+
+ALTER TABLE callings
+  DROP CONSTRAINT IF EXISTS callings_org_title_unique;
+ALTER TABLE callings
+  ADD CONSTRAINT callings_org_title_unique UNIQUE (organization_id, title);
 
 -- Members: unique by church_id (where not null)
 CREATE UNIQUE INDEX IF NOT EXISTS members_church_id_unique

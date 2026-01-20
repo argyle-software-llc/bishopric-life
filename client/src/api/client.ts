@@ -6,6 +6,8 @@ import type {
   CallingConsideration,
   Organization,
   Task,
+  NeedsSetApart,
+  InFlightCount,
 } from '../types';
 
 const api = axios.create({
@@ -85,6 +87,9 @@ export const createCallingChange = (callingChange: Partial<CallingChange>) =>
 
 export const updateCallingChange = (id: string, callingChange: Partial<CallingChange>) =>
   api.put<CallingChange>(`/calling-changes/${id}`, callingChange).then((res) => res.data);
+
+export const deleteCallingChange = (id: string) =>
+  api.delete(`/calling-changes/${id}`).then((res) => res.data);
 
 export const addConsideration = (
   callingChangeId: string,
@@ -248,3 +253,39 @@ export const updateInterview = (id: string, data: { notes?: string; is_due?: boo
 
 export const completeInterview = (id: string, interview_date?: string) =>
   api.post<YouthInterview>(`/interviews/youth/${id}/complete`, { interview_date }).then((res) => res.data);
+
+// In-Flight Callings
+export const getNeedsSetApart = () =>
+  api.get<NeedsSetApart[]>('/in-flight/needs-set-apart').then((res) => res.data);
+
+export const getRecentReleases = () =>
+  api.get<CallingChange[]>('/in-flight/recent-releases').then((res) => res.data);
+
+export const getInFlightCount = () =>
+  api.get<InFlightCount>('/in-flight/count').then((res) => res.data);
+
+export const getInFlightSummary = () =>
+  api.get<{
+    new_assignments: Array<{
+      id: string;
+      calling_title: string;
+      organization_name: string;
+      new_first_name: string;
+      new_last_name: string;
+      detected_at: string;
+    }>;
+    releases: Array<{
+      id: string;
+      calling_title: string;
+      organization_name: string;
+      current_first_name: string;
+      current_last_name: string;
+      detected_at: string;
+    }>;
+  }>('/in-flight/summary').then((res) => res.data);
+
+export const markSetApart = (assignmentId: string, date?: string) =>
+  api.post(`/in-flight/mark-set-apart/${assignmentId}`, { date }).then((res) => res.data);
+
+export const createSetApartTask = (assignmentId: string) =>
+  api.post<{ success: boolean; calling_change_id: string }>(`/in-flight/create-task/${assignmentId}`).then((res) => res.data);

@@ -42,13 +42,82 @@ OAUTH_CONFIG = {
 # Membertools API
 MEMBERTOOLS_API = 'https://membertools-api.churchofjesuschrist.org'
 
-# Database configuration
+
+def get_calling_display_order(title: str) -> int:
+    """
+    Determine display order for a calling based on its title.
+    Lower numbers appear first. Typical org structure:
+    1-9: Leadership (President, Bishop, Counselors)
+    10-19: Administrative (Secretary, Clerk)
+    20-29: Instructors/Teachers
+    30-39: Coordinators/Committee
+    40-49: Advisors/Specialists
+    50+: Other positions
+    """
+    title_lower = title.lower()
+
+    # Leadership positions (1-9)
+    if 'bishop' in title_lower and 'counselor' not in title_lower:
+        return 1
+    if 'president' in title_lower and 'counselor' not in title_lower:
+        return 1
+    if 'first counselor' in title_lower:
+        return 2
+    if 'second counselor' in title_lower:
+        return 3
+    if '1st counselor' in title_lower:
+        return 2
+    if '2nd counselor' in title_lower:
+        return 3
+
+    # Administrative positions (10-19)
+    if 'secretary' in title_lower and 'executive' in title_lower:
+        return 10
+    if 'secretary' in title_lower:
+        return 11
+    if 'clerk' in title_lower and 'assistant' not in title_lower:
+        return 12
+    if 'assistant' in title_lower and 'clerk' in title_lower:
+        return 13
+
+    # Instructors/Teachers (20-29)
+    if 'instructor' in title_lower:
+        return 20
+    if 'teacher' in title_lower:
+        return 21
+
+    # Coordinators/Committee (30-39)
+    if 'coordinator' in title_lower:
+        return 30
+    if 'committee' in title_lower:
+        return 31
+
+    # Advisors/Specialists (40-49)
+    if 'advisor' in title_lower or 'adviser' in title_lower:
+        return 40
+    if 'specialist' in title_lower:
+        return 41
+
+    # Music positions (specific ordering)
+    if 'chorister' in title_lower or 'music chairman' in title_lower:
+        return 25
+    if 'organist' in title_lower or 'pianist' in title_lower:
+        return 26
+    if 'choir' in title_lower and 'director' in title_lower:
+        return 24
+    if 'choir' in title_lower:
+        return 27
+
+    # Default
+    return 50
+
+# Database configuration - use POSTGRES_* env vars if available (Docker), fallback to local defaults
 DB_CONFIG = {
-    'dbname': 'ward_callings',
-    'user': os.getenv('USER', ''),
-    'password': '',
-    'host': 'localhost',
-    'port': 5432,
+    'dbname': os.getenv('POSTGRES_DB', 'ward_callings'),
+    'user': os.getenv('POSTGRES_USER', os.getenv('USER', '')),
+    'password': os.getenv('POSTGRES_PASSWORD', ''),
+    'host': os.getenv('POSTGRES_HOST', 'localhost'),
+    'port': int(os.getenv('POSTGRES_PORT', '5432')),
 }
 
 
@@ -189,6 +258,275 @@ class OAuthClient:
         )
         response.raise_for_status()
         return response.json()
+
+
+# =============================================================================
+# In-Flight Detection Functions
+# =============================================================================
+
+def capture_pre_sync_snapshot(conn):
+    """
+    Capture the current state of calling assignments before sync.
+
+    This snapshot is used to detect "in-flight" callings - assignments that
+    changed in MemberTools but weren't initiated through our app.
+    """
+    cur = conn.cursor()
+
+    print("\nCapturing pre-sync calling snapshot...")
+
+    # Clear old snapshot
+    cur.execute("DELETE FROM pre_sync_calling_snapshot")
+
+    # Capture current state of active calling assignments
+    cur.execute("""
+        INSERT INTO pre_sync_calling_snapshot (
+            calling_org_name, calling_title, member_church_id,
+            member_first_name, member_last_name,
+            sustained_date, set_apart_date, is_active
+        )
+        SELECT
+            o.name as calling_org_name,
+            c.title as calling_title,
+            m.church_id as member_church_id,
+            m.first_name,
+            m.last_name,
+            ca.sustained_date,
+            ca.set_apart_date,
+            ca.is_active
+        FROM calling_assignments ca
+        JOIN callings c ON ca.calling_id = c.id
+        JOIN organizations o ON c.organization_id = o.id
+        JOIN members m ON ca.member_id = m.id
+        WHERE ca.is_active = true
+          AND m.church_id IS NOT NULL
+    """)
+
+    snapshot_count = cur.rowcount
+    conn.commit()
+    cur.close()
+
+    print(f"  - Captured {snapshot_count} active calling assignments")
+
+
+def detect_in_flight_callings(conn):
+    """
+    Detect calling changes that happened in MemberTools but weren't initiated
+    through our app.
+
+    Detects two types:
+    1. New assignments - People who appear in callings after sync but we have
+       no calling_change record for them (possibly sustained externally)
+    2. Releases - People who were in the snapshot but are no longer assigned
+       (released externally)
+    """
+    cur = conn.cursor()
+
+    print("\nDetecting in-flight callings...")
+
+    new_assignments = 0
+    releases = 0
+
+    # -------------------------------------------------------------------------
+    # Detect NEW ASSIGNMENTS
+    # Find members now in callings that weren't in the pre-sync snapshot
+    # and don't already have a calling_change tracking them
+    # -------------------------------------------------------------------------
+    cur.execute("""
+        SELECT
+            c.id as calling_id,
+            o.name as org_name,
+            c.title as calling_title,
+            m.id as member_id,
+            m.church_id as member_church_id,
+            m.first_name,
+            m.last_name,
+            ca.sustained_date,
+            ca.set_apart_date
+        FROM calling_assignments ca
+        JOIN callings c ON ca.calling_id = c.id
+        JOIN organizations o ON c.organization_id = o.id
+        JOIN members m ON ca.member_id = m.id
+        WHERE ca.is_active = true
+          AND m.church_id IS NOT NULL
+          -- Not in pre-sync snapshot (new assignment)
+          AND NOT EXISTS (
+              SELECT 1 FROM pre_sync_calling_snapshot pss
+              WHERE pss.calling_org_name = o.name
+                AND pss.calling_title = c.title
+                AND pss.member_church_id = m.church_id
+          )
+          -- No existing calling_change tracking this assignment
+          AND NOT EXISTS (
+              SELECT 1 FROM calling_changes cc
+              WHERE cc.calling_org_name = o.name
+                AND cc.calling_title = c.title
+                AND cc.new_member_church_id = m.church_id
+                AND cc.status != 'completed'
+          )
+    """)
+
+    new_assignment_rows = cur.fetchall()
+
+    for row in new_assignment_rows:
+        (calling_id, org_name, calling_title, member_id, member_church_id,
+         first_name, last_name, sustained_date, set_apart_date) = row
+
+        print(f"  - New assignment detected: {first_name} {last_name} -> {calling_title} ({org_name})")
+
+        create_in_flight_calling_change(
+            conn=conn,
+            calling_id=calling_id,
+            calling_org_name=org_name,
+            calling_title=calling_title,
+            new_member_id=member_id,
+            new_member_church_id=member_church_id,
+            current_member_id=None,
+            current_member_church_id=None,
+            sustained_date=sustained_date,
+            set_apart_date=set_apart_date,
+            is_release=False
+        )
+        new_assignments += 1
+
+    # -------------------------------------------------------------------------
+    # Detect RELEASES
+    # Find members who were in the snapshot but are no longer in any calling
+    # with the same org/title combination
+    # -------------------------------------------------------------------------
+    cur.execute("""
+        SELECT
+            pss.calling_org_name,
+            pss.calling_title,
+            pss.member_church_id,
+            pss.member_first_name,
+            pss.member_last_name,
+            c.id as calling_id,
+            m.id as member_id
+        FROM pre_sync_calling_snapshot pss
+        -- Find the current calling record (if exists)
+        LEFT JOIN organizations o ON o.name = pss.calling_org_name
+        LEFT JOIN callings c ON c.organization_id = o.id AND c.title = pss.calling_title
+        LEFT JOIN members m ON m.church_id = pss.member_church_id
+        WHERE pss.is_active = true
+          -- Member no longer has this calling
+          AND NOT EXISTS (
+              SELECT 1 FROM calling_assignments ca2
+              JOIN callings c2 ON ca2.calling_id = c2.id
+              JOIN organizations o2 ON c2.organization_id = o2.id
+              JOIN members m2 ON ca2.member_id = m2.id
+              WHERE o2.name = pss.calling_org_name
+                AND c2.title = pss.calling_title
+                AND m2.church_id = pss.member_church_id
+                AND ca2.is_active = true
+          )
+          -- No existing calling_change tracking this release
+          AND NOT EXISTS (
+              SELECT 1 FROM calling_changes cc
+              WHERE cc.calling_org_name = pss.calling_org_name
+                AND cc.calling_title = pss.calling_title
+                AND cc.current_member_church_id = pss.member_church_id
+                AND cc.status != 'completed'
+          )
+    """)
+
+    release_rows = cur.fetchall()
+
+    for row in release_rows:
+        (org_name, calling_title, member_church_id, first_name, last_name,
+         calling_id, member_id) = row
+
+        if calling_id is None or member_id is None:
+            # Calling or member no longer exists - skip
+            continue
+
+        print(f"  - Release detected: {first_name} {last_name} from {calling_title} ({org_name})")
+
+        create_in_flight_calling_change(
+            conn=conn,
+            calling_id=calling_id,
+            calling_org_name=org_name,
+            calling_title=calling_title,
+            new_member_id=None,
+            new_member_church_id=None,
+            current_member_id=member_id,
+            current_member_church_id=member_church_id,
+            sustained_date=None,
+            set_apart_date=None,
+            is_release=True
+        )
+        releases += 1
+
+    conn.commit()
+    cur.close()
+
+    print(f"  Done. New assignments: {new_assignments}, Releases: {releases}")
+
+
+def create_in_flight_calling_change(conn, calling_id, calling_org_name, calling_title,
+                                     new_member_id, new_member_church_id,
+                                     current_member_id, current_member_church_id,
+                                     sustained_date, set_apart_date, is_release):
+    """
+    Create a calling_change record for an auto-detected in-flight calling.
+
+    Also creates the appropriate tasks:
+    - For new assignments: set_apart (if needed) + notify_organization
+    - For releases: notify_organization only
+    """
+    cur = conn.cursor()
+
+    # Create the calling_change record
+    cur.execute("""
+        INSERT INTO calling_changes (
+            calling_id, calling_org_name, calling_title,
+            new_member_id, new_member_church_id,
+            current_member_id, current_member_church_id,
+            status, source, detected_at, created_date
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, 'in_flight', 'auto_detected', CURRENT_TIMESTAMP, CURRENT_DATE)
+        RETURNING id
+    """, (
+        calling_id, calling_org_name, calling_title,
+        new_member_id, new_member_church_id,
+        current_member_id, current_member_church_id
+    ))
+
+    calling_change_id = cur.fetchone()[0]
+
+    if is_release:
+        # For releases, just create notify_organization task
+        cur.execute("""
+            INSERT INTO tasks (
+                calling_change_id, task_type, member_id, member_church_id,
+                status, notes
+            ) VALUES (%s, 'notify_organization', %s, %s, 'pending', %s)
+        """, (calling_change_id, current_member_id, current_member_church_id, calling_org_name))
+    else:
+        # For new assignments, create set_apart (if needed), record_set_apart, and notify_organization
+        if set_apart_date is None:
+            cur.execute("""
+                INSERT INTO tasks (
+                    calling_change_id, task_type, member_id, member_church_id,
+                    status
+                ) VALUES (%s, 'set_apart', %s, %s, 'pending')
+            """, (calling_change_id, new_member_id, new_member_church_id))
+
+            cur.execute("""
+                INSERT INTO tasks (
+                    calling_change_id, task_type, member_id, member_church_id,
+                    status
+                ) VALUES (%s, 'record_set_apart', %s, %s, 'pending')
+            """, (calling_change_id, new_member_id, new_member_church_id))
+
+        # Always notify the organization
+        cur.execute("""
+            INSERT INTO tasks (
+                calling_change_id, task_type, member_id, member_church_id,
+                status, notes
+            ) VALUES (%s, 'notify_organization', %s, %s, 'pending', %s)
+        """, (calling_change_id, new_member_id, new_member_church_id, calling_org_name))
+
+    cur.close()
 
 
 # =============================================================================
@@ -512,6 +850,37 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
         households = [h for h in households if h.get('unitNumber') == home_unit]
     print(f"Processing {len(organizations)} organizations...")
 
+    # Build position UUID → org name lookup by traversing the org hierarchy
+    # This captures age-group specific orgs like "Young Women 12-15"
+    position_to_org_map: Dict[str, str] = {}
+
+    def traverse_org_hierarchy(org: Dict, parent_org_name: Optional[str] = None):
+        """Recursively traverse org hierarchy and map position UUIDs to org names."""
+        org_name = org.get('name', 'Unknown')
+
+        # For class presidencies and adult leaders, use the parent org name (the age group)
+        # e.g., "Young Women Class Presidency" under "Young Women 12-15" → use "Young Women 12-15"
+        effective_org_name = org_name
+        if parent_org_name and any(keyword in org_name for keyword in [
+            'Class Presidency', 'Class Adult Leaders', 'Additional Callings',
+            'Quorum Presidency', 'Quorum Adult Leaders'
+        ]):
+            effective_org_name = parent_org_name
+
+        # Map each position UUID to this org
+        for position_uuid in org.get('positions', []):
+            position_to_org_map[position_uuid] = effective_org_name
+
+        # Recurse into child orgs, passing current org name as parent
+        for child_org in org.get('childOrgs', []):
+            traverse_org_hierarchy(child_org, org_name)
+
+    # Build the lookup for all organizations
+    for org in organizations:
+        traverse_org_hierarchy(org)
+
+    print(f"Built position lookup with {len(position_to_org_map)} position mappings")
+
     # Org type to display name mapping
     ORG_TYPE_NAMES = {
         'BISHOPRIC': 'Bishopric',
@@ -570,23 +939,48 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
         return cur.fetchone()[0]
 
     def get_or_create_calling(org_id: str, title: str) -> str:
+        display_order = get_calling_display_order(title)
         cur.execute(
             """SELECT id FROM callings WHERE organization_id = %s AND title = %s LIMIT 1""",
             (org_id, title),
         )
         row = cur.fetchone()
         if row:
+            # Update display_order if calling exists
+            cur.execute(
+                """UPDATE callings SET display_order = %s WHERE id = %s""",
+                (display_order, row[0]),
+            )
             return row[0]
         cur.execute(
-            """INSERT INTO callings (organization_id, title, requires_setting_apart) VALUES (%s, %s, true) RETURNING id""",
-            (org_id, title),
+            """INSERT INTO callings (organization_id, title, requires_setting_apart, display_order) VALUES (%s, %s, true, %s) RETURNING id""",
+            (org_id, title, display_order),
         )
         return cur.fetchone()[0]
 
-    # First, create organizations from the org structure
-    for org in organizations:
+    # Create organizations from the org structure, including age-group specific orgs
+    def create_orgs_recursive(org: Dict, parent_db_id: Optional[str] = None):
+        """Recursively create organizations from the hierarchy."""
         org_name = org.get('name', 'Unknown')
-        get_or_create_org(org_name)
+
+        # Skip internal org types we don't need (e.g., "Young Women Class Presidency")
+        # These positions will use the parent org (the age group)
+        skip_keywords = ['Class Presidency', 'Class Adult Leaders', 'Additional Callings',
+                        'Quorum Presidency', 'Quorum Adult Leaders']
+        if any(keyword in org_name for keyword in skip_keywords):
+            # Still recurse into children but don't create this org
+            for child_org in org.get('childOrgs', []):
+                create_orgs_recursive(child_org, parent_db_id)
+            return
+
+        org_db_id = get_or_create_org(org_name, parent_db_id)
+
+        # Recurse into child orgs
+        for child_org in org.get('childOrgs', []):
+            create_orgs_recursive(child_org, org_db_id)
+
+    for org in organizations:
+        create_orgs_recursive(org)
 
     # Now extract callings from member positions
     # Positions are stored in each member's 'positions' array
@@ -622,23 +1016,39 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
                     except:
                         pass
 
-                # Determine organization name from position type, position name, or unit name
+                # Determine organization name
+                # Priority: 1) Position UUID lookup (most accurate, includes age groups)
+                #           2) Position type mapping
+                #           3) Position name patterns
+                #           4) Fallback to "Other"
                 org_name = None
+                position_uuid = position.get('uuid')
 
-                # First try to match position type to org
-                for org_type, display_name in ORG_TYPE_NAMES.items():
-                    if org_type in position_type.upper():
-                        org_name = display_name
-                        break
+                # First try position UUID lookup (captures age-group specific orgs)
+                if position_uuid and position_uuid in position_to_org_map:
+                    org_name = position_to_org_map[position_uuid]
 
-                # If no match, try to match position name patterns
+                # Override: Force Bishopric positions to "Bishopric" org regardless of where they appear
+                # (MemberTools places Bishop/counselors under High Priests Quorum)
+                bishopric_patterns = ['bishop', 'ward clerk', 'ward executive secretary', 'ward assistant']
+                if any(pattern in position_name.lower() for pattern in bishopric_patterns):
+                    org_name = 'Bishopric'
+
+                # Fallback: try to match position type to org
+                if not org_name:
+                    for org_type, display_name in ORG_TYPE_NAMES.items():
+                        if org_type in position_type.upper():
+                            org_name = display_name
+                            break
+
+                # Fallback: try to match position name patterns
                 if not org_name:
                     for pattern, target_org in POSITION_NAME_TO_ORG.items():
                         if pattern.lower() in position_name.lower():
                             org_name = target_org
                             break
 
-                # Final fallback: use unit name or "Other"
+                # Final fallback: use "Other"
                 if not org_name:
                     org_name = 'Other'
 
@@ -735,16 +1145,22 @@ def sync_standard_callings(conn):
         return cur.fetchone()[0]
 
     def get_or_create_calling(org_id: str, title: str) -> str:
+        display_order = get_calling_display_order(title)
         cur.execute(
             """SELECT id FROM callings WHERE organization_id = %s AND title = %s LIMIT 1""",
             (org_id, title),
         )
         row = cur.fetchone()
         if row:
+            # Update display_order if calling exists
+            cur.execute(
+                """UPDATE callings SET display_order = %s WHERE id = %s""",
+                (display_order, row[0]),
+            )
             return row[0]
         cur.execute(
-            """INSERT INTO callings (organization_id, title, requires_setting_apart) VALUES (%s, %s, true) RETURNING id""",
-            (org_id, title),
+            """INSERT INTO callings (organization_id, title, requires_setting_apart, display_order) VALUES (%s, %s, true, %s) RETURNING id""",
+            (org_id, title, display_order),
         )
         return cur.fetchone()[0]
 
@@ -917,19 +1333,27 @@ def main():
             # This must come BEFORE hard refresh so member IDs exist for assignments
             member_uuid_map = sync_members_and_households(data, conn, home_unit)
 
-            # STEP 2: Hard refresh synced tables (orgs, callings, assignments, interviews)
+            # STEP 2: Capture pre-sync snapshot (for in-flight detection)
+            # Must happen BEFORE hard refresh so we can compare before/after
+            capture_pre_sync_snapshot(conn)
+
+            # STEP 3: Hard refresh synced tables (orgs, callings, assignments, interviews)
             # This clears stale data and prevents duplicates
             hard_refresh_synced_tables(conn)
 
-            # STEP 3: Re-insert fresh orgs, callings, and assignments
+            # STEP 4: Re-insert fresh orgs, callings, and assignments
             sync_organizations_and_callings(data, conn, member_uuid_map, home_unit)
 
-            # STEP 4: Sync youth interviews (fresh insert after hard refresh)
+            # STEP 5: Sync youth interviews (fresh insert after hard refresh)
             sync_youth_interviews(data, conn, member_uuid_map)
 
-            # STEP 5: Re-link cached IDs in app tables
+            # STEP 6: Re-link cached IDs in app tables
             # This restores references that were set to NULL during hard refresh
             relink_cached_ids(conn)
+
+            # STEP 7: Detect in-flight callings
+            # Compare post-sync state with pre-sync snapshot to find external changes
+            detect_in_flight_callings(conn)
 
             # Print temple recommend summary (until we add DB tables)
             print_temple_recommend_summary(data, member_uuid_map)

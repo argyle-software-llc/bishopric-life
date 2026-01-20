@@ -60,7 +60,9 @@ export interface CallingAssignment {
   updated_at: Date;
 }
 
-export type CallingChangeStatus = 'hold' | 'in_progress' | 'approved' | 'completed';
+export type CallingChangeStatus = 'hold' | 'in_progress' | 'approved' | 'completed' | 'in_flight';
+
+export type CallingChangeSource = 'user_initiated' | 'auto_detected';
 
 export interface CallingChange {
   id: string;
@@ -72,6 +74,8 @@ export interface CallingChange {
   assigned_to_bishopric_member?: string;
   created_date: Date;
   completed_date?: Date;
+  source?: CallingChangeSource;
+  detected_at?: Date;
   created_at: Date;
   updated_at: Date;
 }
@@ -105,6 +109,7 @@ export type TaskType =
   | 'sustain_new'
   | 'release_sustained'
   | 'set_apart'
+  | 'record_set_apart'
   | 'record_in_tools'
   | 'notify_organization';
 

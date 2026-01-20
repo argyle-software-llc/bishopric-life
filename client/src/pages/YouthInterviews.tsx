@@ -32,9 +32,11 @@ export default function YouthInterviews() {
     }
   };
 
-  // Group interviews by type
-  const byiInterviews = interviews?.filter((i) => i.interview_type === 'BYI') || [];
-  const bcyiInterviews = interviews?.filter((i) => i.interview_type === 'BCYI') || [];
+  // Group interviews by type, sort alphabetically by last name
+  const byiInterviews = interviews?.filter((i) => i.interview_type === 'BYI')
+    .sort((a, b) => a.last_name.localeCompare(b.last_name)) || [];
+  const bcyiInterviews = interviews?.filter((i) => i.interview_type === 'BCYI')
+    .sort((a, b) => a.last_name.localeCompare(b.last_name)) || [];
 
   if (isLoading) {
     return (
@@ -112,6 +114,9 @@ export default function YouthInterviews() {
                       Age
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Contact
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -150,6 +155,9 @@ export default function YouthInterviews() {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Age
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Contact
@@ -223,6 +231,11 @@ function InterviewRow({
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="text-sm text-gray-900">{interview.age || '-'}</div>
         <div className="text-xs text-gray-500">{interview.gender || ''}</div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+          Due Now
+        </span>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         {interview.phone && (

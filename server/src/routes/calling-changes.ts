@@ -21,7 +21,9 @@ router.get('/', async (req, res) => {
         nm.id as new_member_id,
         nm.first_name as new_first_name,
         nm.last_name as new_last_name,
-        nm.photo_url as new_photo_url
+        nm.photo_url as new_photo_url,
+        cc.source,
+        cc.detected_at
       FROM calling_changes cc
       LEFT JOIN callings c ON cc.calling_id = c.id
       LEFT JOIN organizations o ON c.organization_id = o.id
@@ -147,10 +149,41 @@ router.post('/', async (req, res) => {
     await client.query('BEGIN');
 
     const callingChange: Partial<CallingChange> = req.body;
+
+    // Look up natural keys for the calling and current member
+    let callingOrgName: string | null = null;
+    let callingTitle: string | null = null;
+    let currentMemberChurchId: number | null = null;
+
+    if (callingChange.calling_id) {
+      const callingResult = await client.query(
+        `SELECT c.title, o.name as org_name
+         FROM callings c
+         JOIN organizations o ON c.organization_id = o.id
+         WHERE c.id = $1`,
+        [callingChange.calling_id]
+      );
+      if (callingResult.rows.length > 0) {
+        callingTitle = callingResult.rows[0].title;
+        callingOrgName = callingResult.rows[0].org_name;
+      }
+    }
+
+    if (callingChange.current_member_id) {
+      const memberResult = await client.query(
+        'SELECT church_id FROM members WHERE id = $1',
+        [callingChange.current_member_id]
+      );
+      if (memberResult.rows.length > 0) {
+        currentMemberChurchId = memberResult.rows[0].church_id;
+      }
+    }
+
     const result = await client.query(
       `INSERT INTO calling_changes (
-        calling_id, current_member_id, status, priority, assigned_to_bishopric_member
-      ) VALUES ($1, $2, $3, $4, $5)
+        calling_id, current_member_id, status, priority, assigned_to_bishopric_member,
+        calling_org_name, calling_title, current_member_church_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
       [
         callingChange.calling_id,
@@ -158,6 +191,9 @@ router.post('/', async (req, res) => {
         callingChange.status ?? 'in_progress',
         callingChange.priority ?? 0,
         callingChange.assigned_to_bishopric_member,
+        callingOrgName,
+        callingTitle,
+        currentMemberChurchId,
       ]
     );
 
@@ -177,9 +213,23 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const callingChange: Partial<CallingChange> = req.body;
+
+    // Look up church_id for new member if provided
+    let newMemberChurchId: number | null = null;
+    if (callingChange.new_member_id) {
+      const memberResult = await pool.query(
+        'SELECT church_id FROM members WHERE id = $1',
+        [callingChange.new_member_id]
+      );
+      if (memberResult.rows.length > 0) {
+        newMemberChurchId = memberResult.rows[0].church_id;
+      }
+    }
+
     const result = await pool.query(
       `UPDATE calling_changes SET
         new_member_id = COALESCE($1, new_member_id),
+        new_member_church_id = COALESCE($7, new_member_church_id),
         status = COALESCE($2, status),
         priority = COALESCE($3, priority),
         assigned_to_bishopric_member = COALESCE($4, assigned_to_bishopric_member),
@@ -193,6 +243,7 @@ router.put('/:id', async (req, res) => {
         callingChange.assigned_to_bishopric_member,
         callingChange.completed_date,
         id,
+        newMemberChurchId,
       ]
     );
     if (result.rows.length === 0) {
@@ -210,14 +261,28 @@ router.post('/:id/considerations', async (req, res) => {
   try {
     const { id } = req.params;
     const consideration: Partial<CallingConsideration> = req.body;
+
+    // Look up church_id for the member
+    let memberChurchId: number | null = null;
+    if (consideration.member_id) {
+      const memberResult = await pool.query(
+        'SELECT church_id FROM members WHERE id = $1',
+        [consideration.member_id]
+      );
+      if (memberResult.rows.length > 0) {
+        memberChurchId = memberResult.rows[0].church_id;
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO calling_considerations (
-        calling_change_id, member_id, is_selected_for_prayer, notes, consideration_order
-      ) VALUES ($1, $2, $3, $4, $5)
+        calling_change_id, member_id, member_church_id, is_selected_for_prayer, notes, consideration_order
+      ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *`,
       [
         id,
         consideration.member_id,
+        memberChurchId,
         consideration.is_selected_for_prayer ?? false,
         consideration.notes,
         consideration.consideration_order ?? 0,
@@ -309,6 +374,7 @@ router.post('/:id/approve', async (req, res) => {
     }
 
     const selectedMemberId = consideration.rows[0].member_id;
+    const selectedMemberChurchId = consideration.rows[0].member_church_id;
     const currentMemberId = callingChange.rows[0].current_member_id;
     const assignedTo = callingChange.rows[0].assigned_to_bishopric_member;
     const newOrgId = callingChange.rows[0].new_org_id;
@@ -324,10 +390,10 @@ router.post('/:id/approve', async (req, res) => {
       [selectedMemberId, newOrgId]
     );
 
-    // Update the calling change with the new member and status
+    // Update the calling change with the new member and status (including natural key)
     await client.query(
-      `UPDATE calling_changes SET new_member_id = $1, status = 'approved' WHERE id = $2`,
-      [selectedMemberId, id]
+      `UPDATE calling_changes SET new_member_id = $1, new_member_church_id = $3, status = 'approved' WHERE id = $2`,
+      [selectedMemberId, id, selectedMemberChurchId]
     );
 
     // Create tasks based on whether there's a current member
@@ -369,11 +435,16 @@ router.post('/:id/approve', async (req, res) => {
       });
     }
 
-    // Always add set apart and record tasks
+    // Always add set apart, record set apart, and record tasks
     tasksToCreate.push({
       type: 'set_apart',
       member_id: selectedMemberId,
       description: 'Set apart new member',
+    });
+    tasksToCreate.push({
+      type: 'record_set_apart',
+      member_id: selectedMemberId,
+      description: 'Record set apart date in LCR',
     });
     tasksToCreate.push({
       type: 'record_in_tools',
@@ -402,12 +473,29 @@ router.post('/:id/approve', async (req, res) => {
       notes: newOrgName,
     });
 
-    // Insert all tasks
+    // Get church_id for current member if exists
+    let currentMemberChurchId: number | null = null;
+    if (currentMemberId) {
+      const currentMemberResult = await client.query(
+        'SELECT church_id FROM members WHERE id = $1',
+        [currentMemberId]
+      );
+      if (currentMemberResult.rows.length > 0) {
+        currentMemberChurchId = currentMemberResult.rows[0].church_id;
+      }
+    }
+
+    // Insert all tasks with natural keys
     for (const task of tasksToCreate) {
+      // Determine the church_id based on which member the task is for
+      const taskMemberChurchId = task.member_id === selectedMemberId
+        ? selectedMemberChurchId
+        : (task.member_id === currentMemberId ? currentMemberChurchId : null);
+
       await client.query(
-        `INSERT INTO tasks (calling_change_id, task_type, member_id, assigned_to, status, notes)
-         VALUES ($1, $2, $3, $4, 'pending', $5)`,
-        [id, task.type, task.member_id, assignedTo, task.notes || null]
+        `INSERT INTO tasks (calling_change_id, task_type, member_id, member_church_id, assigned_to, status, notes)
+         VALUES ($1, $2, $3, $4, $5, 'pending', $6)`,
+        [id, task.type, task.member_id, taskMemberChurchId, assignedTo, task.notes || null]
       );
     }
 
@@ -557,6 +645,46 @@ router.post('/:id/finalize', async (req, res) => {
     await client.query('ROLLBACK');
     console.error('Error finalizing calling change:', error);
     res.status(500).json({ error: 'Failed to finalize calling change' });
+  } finally {
+    client.release();
+  }
+});
+
+// Delete a calling change (only allowed for 'hold' status)
+router.delete('/:id', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { id } = req.params;
+
+    // Check if the calling change exists and is in hold status
+    const existing = await client.query(
+      'SELECT status FROM calling_changes WHERE id = $1',
+      [id]
+    );
+
+    if (existing.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Calling change not found' });
+    }
+
+    if (existing.rows[0].status !== 'hold') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Only calling changes with "hold" status can be deleted' });
+    }
+
+    // Delete related records first (foreign key constraints)
+    await client.query('DELETE FROM tasks WHERE calling_change_id = $1', [id]);
+    await client.query('DELETE FROM calling_considerations WHERE calling_change_id = $1', [id]);
+    await client.query('DELETE FROM calling_changes WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+    res.status(204).send();
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting calling change:', error);
+    res.status(500).json({ error: 'Failed to delete calling change' });
   } finally {
     client.release();
   }

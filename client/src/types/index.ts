@@ -74,7 +74,9 @@ export interface Calling {
   updated_at: string;
 }
 
-export type CallingChangeStatus = 'hold' | 'in_progress' | 'approved' | 'completed';
+export type CallingChangeStatus = 'hold' | 'in_progress' | 'approved' | 'completed' | 'in_flight';
+
+export type CallingChangeSource = 'user_initiated' | 'auto_detected';
 
 export interface CallingConsideration {
   id: string;
@@ -110,10 +112,38 @@ export interface CallingChange {
   assigned_to_bishopric_member?: string;
   created_date: string;
   completed_date?: string;
+  source?: CallingChangeSource;
+  detected_at?: string;
   considerations?: CallingConsideration[];
   tasks?: Task[];
   created_at: string;
   updated_at: string;
+}
+
+// In-flight specific types
+export interface NeedsSetApart {
+  assignment_id: string;
+  sustained_date: string;
+  assigned_date: string;
+  calling_id: string;
+  calling_title: string;
+  organization_name: string;
+  member_id: string;
+  member_church_id: number;
+  first_name: string;
+  last_name: string;
+  photo_url?: string;
+  phone?: string;
+  email?: string;
+  calling_change_id?: string;
+  calling_change_status?: CallingChangeStatus;
+  calling_change_source?: CallingChangeSource;
+}
+
+export interface InFlightCount {
+  needs_set_apart: number;
+  in_flight_changes: number;
+  total: number;
 }
 
 export type TaskType =
@@ -122,6 +152,7 @@ export type TaskType =
   | 'sustain_new'
   | 'release_sustained'
   | 'set_apart'
+  | 'record_set_apart'
   | 'record_in_tools'
   | 'notify_organization';
 
