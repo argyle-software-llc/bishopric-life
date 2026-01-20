@@ -854,6 +854,10 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
     # This captures age-group specific orgs like "Young Women 12-15"
     position_to_org_map: Dict[str, str] = {}
 
+    # Generic sub-org names that need parent prefix to avoid collisions
+    # (e.g., both Elders Quorum and Relief Society have "Teachers", "Activities", "Service")
+    GENERIC_SUBORG_NAMES = ['Teachers', 'Activities', 'Service', 'Ministering']
+
     def traverse_org_hierarchy(org: Dict, parent_org_name: Optional[str] = None):
         """Recursively traverse org hierarchy and map position UUIDs to org names."""
         org_name = org.get('name', 'Unknown')
@@ -866,6 +870,9 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
             'Quorum Presidency', 'Quorum Adult Leaders'
         ]):
             effective_org_name = parent_org_name
+        # For generic sub-org names, prefix with parent to avoid collisions
+        elif parent_org_name and org_name in GENERIC_SUBORG_NAMES:
+            effective_org_name = f"{parent_org_name} - {org_name}"
 
         # Map each position UUID to this org
         for position_uuid in org.get('positions', []):
@@ -959,7 +966,7 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
         return cur.fetchone()[0]
 
     # Create organizations from the org structure, including age-group specific orgs
-    def create_orgs_recursive(org: Dict, parent_db_id: Optional[str] = None):
+    def create_orgs_recursive(org: Dict, parent_db_id: Optional[str] = None, parent_org_name: Optional[str] = None):
         """Recursively create organizations from the hierarchy."""
         org_name = org.get('name', 'Unknown')
 
@@ -970,14 +977,19 @@ def sync_organizations_and_callings(data: Dict, conn, member_uuid_map: Dict[str,
         if any(keyword in org_name for keyword in skip_keywords):
             # Still recurse into children but don't create this org
             for child_org in org.get('childOrgs', []):
-                create_orgs_recursive(child_org, parent_db_id)
+                create_orgs_recursive(child_org, parent_db_id, parent_org_name)
             return
 
-        org_db_id = get_or_create_org(org_name, parent_db_id)
+        # For generic sub-org names, prefix with parent to avoid collisions
+        effective_org_name = org_name
+        if parent_org_name and org_name in GENERIC_SUBORG_NAMES:
+            effective_org_name = f"{parent_org_name} - {org_name}"
+
+        org_db_id = get_or_create_org(effective_org_name, parent_db_id)
 
         # Recurse into child orgs
         for child_org in org.get('childOrgs', []):
-            create_orgs_recursive(child_org, org_db_id)
+            create_orgs_recursive(child_org, org_db_id, org_name)
 
     for org in organizations:
         create_orgs_recursive(org)
